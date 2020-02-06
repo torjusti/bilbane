@@ -13,12 +13,16 @@ class StraightRail:
 
 
 class TurnRail:
-    def __init__(self, radius, angle):
-        if radius <= 0 or angle <= 0:
-            raise ValueError('Radius and angle must be positive')
+    Left = 1
+    Right = -1
+
+    def __init__(self, radius, angle, direction):
+        if radius <= 0:
+            raise ValueError('Radius must be positive')
 
         self.radius = radius
         self.angle = angle
+        self.direction = direction
 
     @property
     def length(self):
@@ -45,10 +49,13 @@ class Track:
                 x += math.cos(angle) * rail.length
                 y += math.sin(angle) * rail.length
             elif isinstance(rail, TurnRail):
-                x += rail.radius * math.cos(angle + rail.angle + math.pi * 3 / 2) \
-                    + math.cos(angle + math.pi / 2) * rail.radius
-                y += rail.radius * math.sin(angle + rail.angle + math.pi * 3 / 2) \
-                    + math.sin(angle + math.pi / 2) * rail.radius
+                delta_yaw = rail.direction * (angle + rail.angle + math.pi * 3 / 2)
+
+                x += rail.radius * math.cos(delta_yaw) + math.cos(angle \
+                    + math.pi / 2) * rail.radius * rail.direction
+
+                y += rail.radius * math.sin(delta_yaw) + math.sin(angle \
+                    + math.pi / 2) * rail.radius * rail.direction
 
                 angle += rail.angle
 
@@ -66,11 +73,17 @@ class Track:
                 car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
                 car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
             elif isinstance(rail, TurnRail):
-                car.x = rail.global_x + rail.radius * math.cos(rail.global_angle + rail.angle * car.rail_progress \
-                    + math.pi * 3 / 2) + math.cos(rail.global_angle + math.pi / 2) * rail.radius
-                car.y = rail.global_y + rail.radius * math.sin(rail.global_angle + rail.angle * car.rail_progress \
-                    + math.pi * 3 / 2) + math.sin(rail.global_angle + math.pi / 2) * rail.radius
-                car.yaw = (rail.global_angle + rail.angle * car.rail_progress) * 180 / math.pi + DEFAULT_YAW
+                delta_yaw = rail.direction * (rail.global_angle + rail.angle \
+                    * car.rail_progress + math.pi * 3 / 2)
+
+                car.x = rail.global_x + rail.radius * math.cos(delta_yaw) + math.cos(
+                    rail.global_angle + math.pi / 2) * rail.radius * rail.direction
+
+                car.y = rail.global_y + rail.radius * math.sin(delta_yaw) + math.sin(
+                    rail.global_angle + math.pi / 2) * rail.radius * rail.direction
+
+                car.yaw = (rail.global_angle + rail.angle * car.rail_progress \
+                    * rail.direction) * 180 / math.pi + DEFAULT_YAW
 
             if car.rail_progress == 1:
                 car.rail = (car.rail + 1) % len(self.rails)
