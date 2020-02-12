@@ -7,7 +7,6 @@ SPRITE_SCALING_CAR = 0.25
 
 
 class SlotCarGame(arcade.Window):
-
     space_pressed = False
 
     def __init__(self, width, height):
@@ -17,23 +16,38 @@ class SlotCarGame(arcade.Window):
 
     def setup(self, track):
         self.track = track
+        self.car_sprites = arcade.SpriteList()
 
-        self.car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
-
-        self.car_sprite.center_x = SCREEN_WIDTH / 2
-        self.car_sprite.center_y = SCREEN_HEIGHT / 2
+        for car in track.cars:
+            car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
+            car_sprite.center_x = SCREEN_WIDTH / 2
+            car_sprite.center_y = SCREEN_HEIGHT / 2
+            self.car_sprites.append(car_sprite)
 
     def on_draw(self):
         arcade.start_render()
-        self.car_sprite.draw()
 
+        for car in self.car_sprites:
+            car.draw()
 
     def update(self, delta_time):
         self.track.step(delta_time)
 
-        self.car_sprite.center_x = self.track.cars[0].x + SCREEN_WIDTH / 2
-        self.car_sprite.center_y = self.track.cars[0].y + SCREEN_HEIGHT / 2
-        self.car_sprite.angle = self.track.cars[0].yaw
+        for i, car_sprite in enumerate(self.car_sprites):
+            car_sprite.center_x = self.track.cars[i].x + SCREEN_WIDTH / 2
+            car_sprite.center_y = self.track.cars[i].y + SCREEN_HEIGHT / 2
+            car_sprite.angle = self.track.cars[i].yaw
+
+    def on_key_press(self, symbol: int, modifiers: int):
+        """
+        if 49 <= symbol <= 57:
+            speed = symbol - 47
+        else:
+            speed = 0
+
+        for car in self.track.cars:
+            car.speed = speed / 9 * Car.MAX_SPEED
+        """
 
 
 def start_game(track):

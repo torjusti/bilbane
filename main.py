@@ -3,6 +3,7 @@ from model import model
 from visualization import game
 import math
 
+
 def main():
     rails = [
         model.StraightRail(200),
@@ -13,7 +14,8 @@ def main():
     ]
 
     cars = [
-        model.Car(),
+        model.Car(model.Rail.Lane1, speed=500),
+        model.Car(model.Rail.Lane2, speed=100),
     ]
 
     track = model.Track(rails, cars)
