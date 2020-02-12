@@ -83,7 +83,7 @@ class Track:
 
                 angle += rail.angle
 
-        return x <= 1e-9 and y <= 1e-9
+        return abs(x) <= 1e-9 and abs(y) <= 1e-9
 
     def place_car(self, car, dist):
         """
