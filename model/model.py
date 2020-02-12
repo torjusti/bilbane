@@ -1,12 +1,16 @@
 import math
+import numpy as np
+import car
 
 DEFAULT_YAW = -90
+G_ACC = 9.81
 
 
 class Rail:
     RAIL_WIDTH = .10
     LANE_EDGE_DIST = .3
     LANE_LANE_DIST = .4
+    RESISTANCE_PER_UNIT_LENGTH = 1
 
     # The coordinates is the middle point of the rail in the front.
     global_x = None
@@ -18,6 +22,8 @@ class Rail:
     Lane1 = 1
     Lane2 = -1
 
+    resistances = None
+
 
 class StraightRail(Rail):
     def __init__(self, length):
@@ -25,6 +31,7 @@ class StraightRail(Rail):
             raise ValueError('Rail length must be positive')
 
         self.length = length
+        self.resistances = np.asarray([self.length, self.length]) * RESISTANCE_PER_UNIT_LENGTH
 
     def get_length(self, lane):
         return self.length
@@ -41,12 +48,13 @@ class TurnRail(Rail):
         self.radius = radius  # counted from the middle of the rail
         self.angle = angle
         self.direction = direction
+        self.resistances = np.asarray([get_lane_length(self, Rail.Lane1), get_lane_length(self, Rail.Lane2)]) * RESISTANCE_PER_UNIT_LENGTH
 
     @property
     def length(self):
         return self.radius * self.angle
 
-    def get_length(self, lane):
+    def get_lane_length(self, lane):
         return (self.radius - self.direction * lane * Rail.LANE_LANE_DIST / 2) * self.angle
 
 
@@ -59,6 +67,11 @@ class Track:
 
         if not self.initialize_rail_coordinates():
             raise ValueError('Track did not form a loop')
+
+        self.resistances = np.asarray([0,0])
+        for rail in self.rails:
+            self.resistances[0] += rail.resistances[0]
+            self.resistances[1] += rail.resistances[1]
 
     def initialize_rail_coordinates(self):
         x, y, angle = 0, 0, 0
@@ -121,37 +134,3 @@ class Track:
                 car.rail_progress = 0
 
 
-class Car:
-    MAX_SPEED = 500
-
-    # Position of the car in the global coordinate system.
-    x = 0
-    y = 0
-
-    speed = 0
-    thrust = 0
-
-    # Index of the track the car is situated on.
-    rail = None
-    # How far along the car is on the current rail.
-    rail_progress = 0
-
-    lane = None
-
-    # Yaw with respect to the global coordiante system.
-    yaw = DEFAULT_YAW
-
-    def __init__(self, lane, speed):
-        self.lane = lane
-        self.speed = speed
-
-    def distance_moved(self, delta_time):
-        """
-        :param delta_time:
-        :return: distance in meter
-        """
-        self.rail_progress += delta_time * self.speed / self.rail.get_length(self.lane)
-        self.rail_progress = min(self.rail_progress, 1)
-
-        if self.rail_progress == 1:
-            self.rail = self.rail.next_rail
