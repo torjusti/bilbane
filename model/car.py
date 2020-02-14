@@ -18,10 +18,10 @@ class Car:
     vel_vec = np.zeros(3)
     acc_vec = np.zeros(3)
 
-    mass       = None
-    area       = None
-    drag_coeff = None
-    mag_coeff  = None
+    mass       = 0.08 #kg
+    area       = 0.002268 #m^2
+    drag_coeff = 0.35
+    mag_coeff  = 1 #N
     motor_eta  = None
 
     # Track section on which the car is situated.
@@ -59,10 +59,29 @@ class Car:
             angle_vec = get_new_body_angles()
         return angle_vec
 
-    def get_new_point_angles():
-        yaw = 0 # TODO
-        angle_vec = np.asarray([0,0,yaw])
-        return angle_vec
+    def get_new_point_angles(pos_vec,Rail current_rail):
+            #TODO: Fix stuff between -------------
+        if current_rail.isturn: #needs a member function to check if rail is a turning rail
+            #--------------------------------------------------------------------------------------------------------
+            pos_vec_COR=current_rail.centre #needs a member function to find centre of rail
+            lane_radius=current_rail.radius #needs a member function radius of rail to lane
+            left_turn=current_rail.isleftturn #needs a boolean value to know whether or not it is in a left turn
+            #------------------------------------------------------------------------------------------------------
+            pos_vec_rel=pos_vec-pos_vec_COR #vector from centre of rail to car
+            pos_vec_up=np.array([0,lane_radius]) #vector from centre of rail in positive y(local) coord
+            dot_product=np.dot(pos_vec_rel,pos_vec_up) #dotproduct between the two
+            relative_angle=np.arccos(dot_product/(lane_radius*lane_radius)) #angle between Y(global) and y(local) axis
+            if pos_vec_rel[0]<0: #if relative position vector points to the right
+                yaw=relative_angle #angle between X(global) and x(local) axis
+            else:
+                yaw=360-relative_angle #angle between X(global) and x(local) axis
+            if left_turn:
+                yaw=yaw+180 #left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
+        else:
+            yaw=current_rail.angle #needs angle of rail #TODO: Also this
+
+        new_angle_vec = np.asarray([0, 0, yaw])
+        return new_angle_vec
 
     def get_new_body_angles():
         return angle_vec
