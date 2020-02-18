@@ -17,35 +17,19 @@ class SlotCarGame(arcade.Window):
         arcade.set_background_color(arcade.color.WHITE)
 
     def setup_track(self):
-        track_coordinates = self.track.get_track_coordinates(INIT_CENTER_X,INIT_CENTER_Y)
+        straight_track_coordinates,turn_track_coordinated =\
+        self.track.get_track_coordinates(INIT_CENTER_X,INIT_CENTER_Y)
+
         self.track_element_list = arcade.ShapeElementList()
-        for i in range(len(track_coordinates)-1):
-            if track_coordinates[i+1][3] == 0:
-                shape = arcade.create_line(track_coordinates[i][0],track_coordinates[i][1],
-                track_coordinates[i+1][0],track_coordinates[i+1][1],arcade.color.BLACK)
-                self.track_element_list.append(shape)
-            else:
-                start_ang = min(track_coordinates[i][2],track_coordinates[i+1][2])*180/math.pi-90
-                end_ang = max(track_coordinates[i][2],track_coordinates[i+1][2])*180/math.pi-90
-                width = abs(track_coordinates[i][0]-track_coordinates[i+1][0])
-                height = abs(track_coordinates[i][1]-track_coordinates[i+1][1])        
-                if track_coordinates[i+1][0]-track_coordinates[i][0]<0 and\
-                    track_coordinates[i+1][1]-track_coordinates[i][1]>0:
-                    center_x = track_coordinates[i][0] +\
-                        (track_coordinates[i+1][0]-track_coordinates[i][0])
-                    center_y = track_coordinates[i][1]
-                elif track_coordinates[i+1][0]-track_coordinates[i][0]>0 and\
-                    track_coordinates[i+1][1]-track_coordinates[i][1]<0:
-                    center_x = track_coordinates[i][0] +\
-                        (track_coordinates[i+1][0]-track_coordinates[i][0])
-                    center_y = track_coordinates[i][1]
-                else:
-                    center_x = track_coordinates[i][0]
-                    center_y = track_coordinates[i][1]+\
-                        (track_coordinates[i+1][1]-track_coordinates[i][1])
-                shape = cao.create_arc_outline(center_x,center_y,width,height,arcade.color.BLACK,start_ang,
-                end_ang)
-                self.track_element_list.append(shape)
+
+        for coord in straight_track_coordinates:
+            shape = arcade.create_line(*coord,arcade.color.BLACK) 
+            self.track_element_list.append(shape)
+
+        for coord in turn_track_coordinated:
+            shape = cao.create_arc_outline(*coord[0:4],arcade.color.BLACK,*coord[4:6])
+            self.track_element_list.append(shape)
+        
     
     def setup(self, track):
         self.track = track

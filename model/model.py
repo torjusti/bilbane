@@ -97,23 +97,43 @@ class Track:
         pass
 
     def get_track_coordinates(self,init_x,init_y):
-        track_coordinates = []
-        x = init_x
-        y = init_y
+        """" Returns one array for with coordinates for straight rails, x_start,y_start,x_end, y_end
+            and one array with coordinates for turn rails, x_center, y_center, width, height, start_ang, end_ang
+            start_ang < end_ang
+        """
+        straight_track_coordinates = []
+        turn_track_coordinates = []
+        x_end = init_x
+        y_end = init_y
         angle = 0
-        track_coordinates.append([x,y,angle,0])
         for rail in self.rails:
+            x_start = x_end
+            y_start = y_end
             if isinstance(rail, StraightRail):
-                x += math.cos(angle) * rail.length
-                y += math.sin(angle) * rail.length
-                track_coordinates.append([x,y,angle,0])
+                x_end += math.cos(angle) * rail.length
+                y_end += math.sin(angle) * rail.length
+                straight_track_coordinates.append([x_start, y_start, x_end, y_end])
             elif isinstance(rail, TurnRail):
-                circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
-                x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
-                y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
+                center_x = x_start + rail.radius * math.cos(rail.global_angle + rail.direction * math.pi / 2)
+                center_y = y_start + rail.radius * math.sin(rail.global_angle + rail.direction * math.pi / 2)
+                initial_angle = math.atan2(y_start - center_y, x_start - center_x)
+                
+                x_end = center_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
+                y_end = center_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
+                
+                width = abs(x_start - x_end)
+                height = abs(y_start - y_end)
+                start_ang = initial_angle * 180/math.pi
+                end_ang = (rail.angle + initial_angle) * 180/math.pi
+                
+                if(rail.direction == -1):
+                    start_ang += 90
+                    end_ang += 90
+
                 angle += rail.angle
-                track_coordinates.append([x,y,angle,1])  
-        return track_coordinates
+                turn_track_coordinates.append([center_x, center_y, width, height, start_ang, end_ang]) 
+
+        return straight_track_coordinates,turn_track_coordinates
         
     def step(self, delta_time):
         for car in self.cars:
