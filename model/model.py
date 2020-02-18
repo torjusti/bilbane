@@ -3,7 +3,6 @@ import numpy as np
 import car
 
 DEFAULT_YAW = -90
-G_ACC = 9.81
 
 
 class Rail:
@@ -41,13 +40,13 @@ class TurnRail(Rail):
     Left = 1
     Right = -1
 
-    def __init__(self, radius, angle, direction):
+    def __init__(self, radius, angle, direction, orientation):
         if radius <= 0:
             raise ValueError('Radius must be positive')
 
         self.radius = radius  # counted from the middle of the rail
-        self.angle = angle
-        self.direction = direction
+        self.angle = angle  # Number of degrees rotated relative to global coordinate system by travelling along the entire rail
+        self.direction = direction  # 1 for left turn, -1 for right turn
         self.resistances = np.asarray([get_lane_length(self, Rail.Lane1), get_lane_length(self, Rail.Lane2)]) * RESISTANCE_PER_UNIT_LENGTH
 
     @property
@@ -56,6 +55,20 @@ class TurnRail(Rail):
 
     def get_lane_length(self, lane):
         return (self.radius - self.direction * lane * Rail.LANE_LANE_DIST / 2) * self.angle
+
+    def get_rail_center(self):
+        # TODO: Asummes 2D
+        pos_vec = np.asarray([self.global_x, self.global_y])
+        theta = np.radians(self.global_angle)
+        # TODO: How is global_angle measured? Assumes it is angle with x-axis, positive CCW
+
+        orientation   = np.asarray([np.cos(theta), np.sin(theta)])
+        # Left turn => center is 90 degrees CCW relative to orientation
+        # Right turn => center is 90 degrees CW relative to orientation
+        rot_matrix    = np.asarray([[0, -self.direction], [self.direction ,0]])
+        vec_start_to_center = np.dot(rot_matrix, orientation) * self.radius
+        global_center_coords = pos_vec + vec_start_to_center
+        return global_center_coords
 
 
 class Track:
