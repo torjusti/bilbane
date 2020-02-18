@@ -6,15 +6,10 @@ import math
 
 def main():
     rails = [
-        model.StraightRail(100),
-        model.TurnRail(100, math.pi/2, model.TurnRail.Left),
-        model.StraightRail(100),
-        model.TurnRail(100, math.pi/2, model.TurnRail.Left),
-        model.StraightRail(100),
-        model.TurnRail(100, math.pi/2, model.TurnRail.Left),
-        model.StraightRail(100),
-        model.TurnRail(100, math.pi/2, model.TurnRail.Left)
-        
+        model.StraightRail(200),
+        model.TurnRail(100, math.pi * 3 / 2, model.TurnRail.Left),
+        model.StraightRail(200),
+        model.TurnRail(100, math.pi * 3 / 2, model.TurnRail.Right),
     ]
 
     cars = [

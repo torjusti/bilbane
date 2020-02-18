@@ -61,6 +61,13 @@ class Track:
         if not self.initialize_rail_coordinates():
             raise ValueError('Track did not form a loop')
 
+    def _get_turn_circle(self, rail):
+        """ Compute the center of the circle describing a turn rail, and the car entry angle. """
+        circle_x = rail.global_x + rail.radius * math.cos(rail.global_angle + rail.direction * math.pi / 2)
+        circle_y = rail.global_y + rail.radius * math.sin(rail.global_angle + rail.direction * math.pi / 2)
+        initial_angle = math.atan2(rail.global_y - circle_y, rail.global_x - circle_x)
+        return circle_x, circle_y, initial_angle
+
     def initialize_rail_coordinates(self):
         x, y, angle = 0, 0, 0
 
@@ -68,25 +75,19 @@ class Track:
             rail.global_angle = angle
             rail.global_x = x
             rail.global_y = y
+
             rail.next_rail = self.rails[(i + 1) % len(self.rails)]
 
             if isinstance(rail, StraightRail):
                 x += math.cos(angle) * rail.length
                 y += math.sin(angle) * rail.length
             elif isinstance(rail, TurnRail):
-                delta_yaw = rail.direction * (angle + rail.angle + math.pi * 3 / 2)
-
-                x += rail.radius * math.cos(delta_yaw) + math.cos(angle \
-                                                                  + math.pi / 2) * rail.radius * rail.direction
-
-                y += rail.radius * math.sin(delta_yaw) + math.sin(angle \
-                                                                  + math.pi / 2) * rail.radius * rail.direction
-
+                circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
+                x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
+                y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
                 angle += rail.angle
 
-        return x <= 1e-9 and y <= 1e-9
-    
-
+        return abs(x) <= 1e-9 and abs(y) <= 1e-9
 
     def place_car(self, car, dist):
         """
@@ -107,14 +108,9 @@ class Track:
                 y += math.sin(angle) * rail.length
                 track_coordinates.append([x,y,angle,0])
             elif isinstance(rail, TurnRail):
-                delta_yaw = rail.direction * (angle + rail.angle + math.pi * 3 / 2)
-
-                x += rail.radius * math.cos(delta_yaw) + math.cos(angle \
-                    + math.pi / 2) * rail.radius * rail.direction
-
-                y += rail.radius * math.sin(delta_yaw) + math.sin(angle \
-                    + math.pi / 2) * rail.radius * rail.direction
-
+                circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
+                x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
+                y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
                 angle += rail.angle
                 track_coordinates.append([x,y,angle,1])  
         return track_coordinates
@@ -131,17 +127,14 @@ class Track:
                 car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
                 car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
             elif isinstance(rail, TurnRail):
-                delta_yaw = rail.direction * (rail.global_angle + rail.angle \
-                                              * car.rail_progress + math.pi * 3 / 2)
+                circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
-                car.x = rail.global_x + rail.radius * math.cos(delta_yaw) + math.cos(
-                    rail.global_angle + math.pi / 2) * rail.radius * rail.direction
+                angle = initial_angle + rail.angle * car.rail_progress * rail.direction
 
-                car.y = rail.global_y + rail.radius * math.sin(delta_yaw) + math.sin(
-                    rail.global_angle + math.pi / 2) * rail.radius * rail.direction
+                car.x = circle_x + rail.radius * math.cos(angle)
+                car.y = circle_y + rail.radius * math.sin(angle)
 
-                car.yaw = (rail.global_angle + rail.angle * car.rail_progress \
-                           * rail.direction) * 180 / math.pi + DEFAULT_YAW
+                car.yaw = (rail.global_angle + rail.angle * car.rail_progress * rail.direction) * 180 / math.pi + DEFAULT_YAW
 
             if car.rail_progress == 1:
                 car.rail = car.rail.next_rail
