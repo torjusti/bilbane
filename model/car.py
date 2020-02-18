@@ -103,7 +103,7 @@ class Car:
         # If on a turn
         if isinstance(new_rail, TurnRail):
             pos_vec_COR = new_rail.get_rail_center
-            lane_radius = new_rail.radius # TODO: Fix this
+            lane_radius = new_rail.radius # TODO: Not sure if this is doing what it should
             left_turn   = (new_rail.direction == TurnRail.Left)
             
             pos_vec_rel    = new_pos_vec - pos_vec_COR # Vector from centre of rail to car
