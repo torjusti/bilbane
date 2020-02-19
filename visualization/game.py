@@ -1,14 +1,13 @@
 import arcade
 import math
-from visualization.utils import create_arc_outline as cao
+from visualization.utils import create_arc_outline
 import numpy as np
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
 SPRITE_SCALING_CAR = 0.25
-INIT_CENTER_X = SCREEN_WIDTH/2
-INIT_CENTER_Y = SCREEN_HEIGHT/2
+
 
 
 class SlotCarGame(arcade.Window):
@@ -34,7 +33,7 @@ class SlotCarGame(arcade.Window):
         for coord in self.track.turn_track_coordinates:
             coord[:2] = self.transform(*coord[:2])
             coord[2:4] = self.scale_length(coord[2]), self.scale_length(coord[3])
-            shape = cao.create_arc_outline(*coord[0:4],arcade.color.BLACK,*coord[4:6])
+            shape = create_arc_outline.create_arc_outline(*coord[0:4],arcade.color.BLACK,*coord[4:6])
             self.track_element_list.append(shape)
         
     
