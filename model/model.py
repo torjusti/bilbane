@@ -30,7 +30,7 @@ class StraightRail(Rail):
 
     def get_length(self, lane):
         return self.length
-
+    
 
 class TurnRail(Rail):
     Left = 1
@@ -43,6 +43,7 @@ class TurnRail(Rail):
         self.radius = radius  # counted from the middle of the rail
         self.angle = angle
         self.direction = direction
+    
 
     @property
     def length(self):
@@ -71,6 +72,8 @@ class Track:
 
     def initialize_rail_coordinates(self):
         x, y, angle = 0, 0, 0
+        self.straight_track_coordinates = []
+        self.turn_track_coordinates = []
 
         for i, rail in enumerate(self.rails):
             rail.global_angle = angle
@@ -82,11 +85,22 @@ class Track:
             if isinstance(rail, StraightRail):
                 x += math.cos(angle) * rail.length
                 y += math.sin(angle) * rail.length
+                self.straight_track_coordinates.append([rail.global_x, rail.global_y, x, y])
             elif isinstance(rail, TurnRail):
                 circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
                 x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
                 y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
                 angle += rail.angle
+
+                start_ang = initial_angle 
+                end_ang = rail.angle + initial_angle
+                
+                if(rail.direction == TurnRail.Right):
+                     start_ang += 2*math.pi-rail.angle
+                     end_ang += 2*math.pi-rail.angle
+                
+                self.turn_track_coordinates.append([circle_x, circle_y, rail.radius, rail.radius,
+                 start_ang*180/math.pi, end_ang*180/math.pi])
 
         return abs(x) <= 1e-9 and abs(y) <= 1e-9
 
@@ -117,6 +131,7 @@ class Track:
         """
         pass
 
+        
     def step(self, delta_time):
         for car in self.cars:
             rail = car.rail
