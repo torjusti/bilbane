@@ -24,15 +24,18 @@ class SlotCarGame(arcade.Window):
 
     def setup_track(self):
         straight_track_coordinates,turn_track_coordinated =\
-        self.track.get_track_coordinates(INIT_CENTER_X,INIT_CENTER_Y)
-
+        self.track.get_track_coordinates(0, 0)
         self.track_element_list = arcade.ShapeElementList()
 
         for coord in straight_track_coordinates:
-            shape = arcade.create_line(*coord,arcade.color.BLACK) 
+            coord[:2] = self.transform(*coord[:2])
+            coord[2:4] = self.transform(*coord[2:])
+            shape = arcade.create_line(*coord,arcade.color.BLACK)
             self.track_element_list.append(shape)
 
         for coord in turn_track_coordinated:
+            coord[:2] = self.transform(*coord[:2])
+            coord[2:4] = self.scale_length(coord[2]), self.scale_length(coord[3])
             shape = cao.create_arc_outline(*coord[0:4],arcade.color.BLACK,*coord[4:6])
             self.track_element_list.append(shape)
         
@@ -60,8 +63,15 @@ class SlotCarGame(arcade.Window):
         difference = (self.track_bounds[1] - self.track_bounds[0])
         max_diff = difference.max()
         normalized = (coordinate - self.track_bounds[0]) / max_diff
-        # TODO calculate magic number 0.1 in a better way.
-        return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
+        # TODO calculate padding for the screen in a general way.
+        return normalized * min(SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    def scale_length(self, length):
+        """ Scale a length from the car/track length system, to a length in
+        pixels corresponding to the transform method. """
+        max_diff = (self.track_bounds[1] - self.track_bounds[0]).max()
+        normalized = length / max_diff
+        return normalized * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def on_draw(self):
         arcade.start_render()
