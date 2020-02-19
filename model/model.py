@@ -6,15 +6,16 @@ DEFAULT_YAW = -90
 
 
 class Rail:
-    RAIL_WIDTH = .10
-    LANE_EDGE_DIST = .3
-    LANE_LANE_DIST = .4
-    RESISTANCE_PER_UNIT_LENGTH = 1
+    LANE_EDGE_DIST = .039
+    LANE_LANE_DIST = .0765
+    RAIL_WIDTH = LANE_LANE_DIST + 2*LANE_EDGE_DIST
+
+    RESISTANCE_PER_UNIT_LENGTH = .033
 
     # The coordinates is the middle point of the rail in the front.
     global_x = None
     global_y = None
-    global_angle = None
+    global_angle = None # Angle with x-axis, positive CCW
 
     next_rail = None
 
@@ -30,7 +31,8 @@ class StraightRail(Rail):
             raise ValueError('Rail length must be positive')
 
         self.length = length
-        self.resistances = np.asarray([self.length, self.length]) * RESISTANCE_PER_UNIT_LENGTH
+        self.resistances = np.asarray([self.length, self.length]) * self.RESISTANCE_PER_UNIT_LENGTH
+        print(self.resistances)
 
     def get_length(self, lane):
         return self.length
@@ -40,14 +42,15 @@ class TurnRail(Rail):
     Left = 1
     Right = -1
 
-    def __init__(self, radius, angle, direction, orientation):
+    def __init__(self, radius, angle, direction):
         if radius <= 0:
             raise ValueError('Radius must be positive')
 
         self.radius = radius  # counted from the middle of the rail
-        self.angle = angle  # Number of degrees rotated relative to global coordinate system by travelling along the entire rail
+        self.angle = angle  # Number of radians rotated relative to global coordinate system by travelling along the entire rail
         self.direction = direction  # 1 for left turn, -1 for right turn
-        self.resistances = np.asarray([get_lane_length(self, Rail.Lane1), get_lane_length(self, Rail.Lane2)]) * RESISTANCE_PER_UNIT_LENGTH
+        self.resistances = np.asarray([self.get_lane_length(Rail.Lane1), self.get_lane_length(Rail.Lane2)]) * self.RESISTANCE_PER_UNIT_LENGTH
+        print(self.resistances)
 
     @property
     def length(self):
@@ -58,14 +61,15 @@ class TurnRail(Rail):
 
     def get_rail_center(self):
         # TODO: Asummes 2D
-        pos_vec = np.asarray([self.global_x, self.global_y])
-        theta = np.radians(self.global_angle)
-        # TODO: How is global_angle measured? Assumes it is angle with x-axis, positive CCW
 
-        orientation   = np.asarray([np.cos(theta), np.sin(theta)])
+        pos_vec = np.asarray([self.global_x, self.global_y])
+
+        orientation   = np.asarray([np.cos(self.global_angle), np.sin(self.global_angle)])
+
         # Left turn => center is 90 degrees CCW relative to orientation
         # Right turn => center is 90 degrees CW relative to orientation
         rot_matrix    = np.asarray([[0, -self.direction], [self.direction ,0]])
+
         vec_start_to_center = np.dot(rot_matrix, orientation) * self.radius
         global_center_coords = pos_vec + vec_start_to_center
         return global_center_coords
@@ -75,13 +79,11 @@ class Track:
     def __init__(self, rails, cars):
         self.rails = rails
         self.cars = cars
-        for car in self.cars:
-            car.rail = rails[0]
 
         if not self.initialize_rail_coordinates():
             raise ValueError('Track did not form a loop')
 
-        self.resistances = np.asarray([0,0])
+        self.resistances = np.zeros(2)
         for rail in self.rails:
             self.resistances[0] += rail.resistances[0]
             self.resistances[1] += rail.resistances[1]

@@ -17,9 +17,9 @@ class Car:
     is_chrashed = None
 
     # Position of the car in the global coordinate system.
-    pos_vec = np.zeros(3)
-    vel_vec = np.zeros(3)
-    acc_vec = np.zeros(3)
+    pos_vec = None
+    vel_vec = None
+    acc_vec = None
 
     mass       = None  # kg
     area       = None  # m^2
@@ -43,24 +43,28 @@ class Car:
     # Input from the controller. Will be converted to a voltage which drives the car
     controller_input = None # Value in interval [0,1]
 
-    def __init__(self, lane, speed, track):
+    def __init__(self, lane, track):
         self.lane  = lane
-        self.speed = speed
         self.track = track
+        self.rail = track.rails[0]
 
         self.controller_input = 0
 
         is_chrashed   = False
         is_point_mass = True
 
-        mass       = 0.08       #kg
-        area       = 0.002268   #m^2
-        drag_coeff = 0.35
-        mag_coeff  = 1          #N
-        motor_eta  = 1
-        mu_tire    = 1
-        mu_pin     = 1
-        mu_roll    = 1
+        mass       = 0.08       # kg
+        area       = 0.002268   # m^2
+        drag_coeff = 0.35       # dimensionless
+        mag_coeff  = 1          # N
+        motor_eta  = 1          # dimensionless
+        mu_tire    = .9         # dimensionless
+        mu_pin     = .04        # dimensionless
+        mu_roll    = .01        # dimensionless
+
+        pos_vec = np.zeros(3)
+        vel_vec = np.zeros(3)
+        acc_vec = np.zeros(3)
     
     def get_new_state(self, delta_time):
         """
@@ -73,14 +77,19 @@ class Car:
         """
 
         new_pos_vec   = None
+        new_speed     = None
         new_angle_vec = None
 
-        if (not self.is_chrashed):
-            new_pos_vec   = self.get_new_pos(delta_time)
-            new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
+        return_position = False
 
-        self.set_new_pos(new_pos_vec)
-        return new_pos_vec, new_angle_vec
+        if (not self.is_chrashed):
+            if return_position:
+                new_pos_vec   = self.get_new_pos(delta_time)
+                new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
+            else:
+                new_vel_vec = self.get_new_vel(delta_time)
+
+        return new_pos_vec, new_angle_vec, new_vel_vec
 
     def get_new_pos(self, delta_time):
         """
@@ -97,13 +106,19 @@ class Car:
 
         return new_pos_vec
 
-    def set_new_pos(self, new_pos_vec):
+    def get_new_vel(self, delta_time):
         """
-        Purpose: Set new state of the car
+        Purpose: Get new velocity of the car
         Args:
-            new_pos_vec -- ndarray containing new car position (x,y,z)
+            delta_time -- time step in seconds
+        Returns: 
+            new_vel_vec -- ndarray containing new car velocity (v_x,v_y,v_z)
         """
-        self.pos_vec = new_pos_vec
+
+        new_acc_vec = self.get_total_force() / self.mass
+        new_vel_vec = vel_vec + new_acc_vec*delta_time
+
+        return new_pos_vec
 
     def get_new_angles(self, new_pos_vec, new_rail):
         """
@@ -174,7 +189,7 @@ class Car:
             total_force_vec -- ndarray containing force acting on the car (in x-, y- and z-direction)
         """
 
-        total_force_vec = self.get_rolling_resistance()
+        total_force_vec = ( self.get_rolling_resistance()
                           + self.get_pin_friction()
                           + self.get_lateral_friction()
                           + self.get_magnet_force()
@@ -182,7 +197,7 @@ class Car:
                           + self.get_normal_force()
                           + self.get_thrust_force()
                           + self.get_drag_force()
-                          + self.get_lateral_pin_force()
+                          + self.get_lateral_pin_force() )
         
         # Crash check
         if (total_force_vec[1] >= self.MAX_LATERAL_FORCE):
@@ -243,7 +258,7 @@ class Car:
 
         # TODO: Make valid for skidding car (skid => magnet not above rail)
 
-        m_vec = [0, 0, -self.mag_coeff]
+        m_vec = np.asarray([0, 0, -self.mag_coeff])
 
         return m_vec
 
@@ -338,4 +353,30 @@ class Car:
 
 
 if __name__ == "__main__":
-    # TODO: Do some testing here
+    # Doing some testing here
+
+    # ----------------------------------------------
+    # Test set-up
+
+    # Define rails of test track
+    test_rails = [
+        model.StraightRail(200),
+        model.TurnRail(100, np.pi, model.TurnRail.Left),
+        model.TurnRail(25, 2 * np.pi, model.TurnRail.Right),
+        model.StraightRail(200),
+        model.TurnRail(100, np.pi, model.TurnRail.Left)
+    ]
+
+    # Define test track, without cars
+    test_track = model.Track(test_rails, None)
+
+    # Define test cars
+    test_cars = [
+        Car(model.Rail.Lane1, test_track),
+        Car(model.Rail.Lane2, test_track)
+    ]
+
+    # Put test cars on test track
+    test_track.cars = test_cars
+
+    print(test_track.resistances)    
