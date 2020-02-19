@@ -91,18 +91,20 @@ class Track:
         return abs(x) <= 1e-9 and abs(y) <= 1e-9
 
     def get_track_bounds(self):
+        """
+        Calculate the coordinates of the bottom left, and the top right corners of the track.
+        """
         bottom_left, top_right = np.zeros(2), np.zeros(2)
         for rail in self.rails:
             if isinstance(rail, StraightRail):
                 continue
             circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
             coord = np.array([circle_x, circle_y])
-            radius = rail.radius
 
-            circle_bottom_left = coord - radius
+            circle_bottom_left = coord - rail.radius
             bottom_left = np.minimum(bottom_left, circle_bottom_left)
 
-            circle_top_right = coord + radius
+            circle_top_right = coord + rail.radius
             top_right = np.maximum(top_right, circle_top_right)
 
         return bottom_left, top_right

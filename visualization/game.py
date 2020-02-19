@@ -24,10 +24,14 @@ class SlotCarGame(arcade.Window):
             self.car_sprites.append(car_sprite)
 
     def transform(self, x, y):
+        """
+        Take car and track coordinates, and calculate to pixel coordinates.
+        """
         coordinate = np.array([x, y])
         difference = (self.track_bounds[1] - self.track_bounds[0])
         max_diff = difference.max()
         normalized = (coordinate - self.track_bounds[0]) / max_diff
+        # TODO calculate magic number 0.1 in a better way.
         return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def on_draw(self):
