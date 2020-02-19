@@ -117,7 +117,7 @@ class Track:
         """
         pass
 
-    def get_track_coordinates(self,init_x,init_y):
+    def get_track_coordinates(self):
         """" 
         Returns one array for with coordinates for straight rails, x_start,y_start,x_end, y_end
         and one array with coordinates for turn rails, x_center, y_center, width, height, start_ang, end_ang
@@ -125,9 +125,7 @@ class Track:
         """
         straight_track_coordinates = []
         turn_track_coordinates = []
-        x_end = init_x
-        y_end = init_y
-        angle = 0
+        x_end, y_end, angle = 0, 0, 0
         for rail in self.rails:
             x_start = x_end
             y_start = y_end
@@ -136,26 +134,21 @@ class Track:
                 y_end += math.sin(angle) * rail.length
                 straight_track_coordinates.append([x_start, y_start, x_end, y_end])
             elif isinstance(rail, TurnRail):
-                #center_x, center_y, initial_angle = self._get_turn_circle(rail)
-                center_x = x_start + rail.radius * math.cos(angle + rail.direction * math.pi / 2)
-                center_y = y_start + rail.radius * math.sin(angle + rail.direction * math.pi / 2)
-                initial_angle = math.atan2(y_start - center_y, x_start - center_x)
+                center_x, center_y, initial_angle = self._get_turn_circle(rail)
     
                 x_end = center_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
                 y_end = center_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
                 
-                width = rail.radius
-                height = rail.radius
-                start_ang = (initial_angle) * 180/math.pi
-                end_ang = (rail.angle + initial_angle) * 180/math.pi
+                start_ang = initial_angle 
+                end_ang = rail.angle + initial_angle
                 
                 if(rail.direction == TurnRail.Right):
-                     start_ang += 360-rail.angle*180/math.pi
-                     end_ang += 360-rail.angle*180/math.pi
-                #print("start ", start_ang)
-                #print("end ", end_ang)
+                     start_ang += 2*math.pi-rail.angle
+                     end_ang += 2*math.pi-rail.angle
+                
                 angle += rail.angle
-                turn_track_coordinates.append([center_x, center_y, width, height, start_ang, end_ang]) 
+                turn_track_coordinates.append([center_x, center_y, rail.radius, rail.radius,
+                 start_ang*180/math.pi, end_ang*180/math.pi]) 
 
         return straight_track_coordinates,turn_track_coordinates
         

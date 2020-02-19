@@ -24,7 +24,7 @@ class SlotCarGame(arcade.Window):
 
     def setup_track(self):
         straight_track_coordinates,turn_track_coordinated =\
-        self.track.get_track_coordinates(0, 0)
+        self.track.get_track_coordinates()
         self.track_element_list = arcade.ShapeElementList()
 
         for coord in straight_track_coordinates:
