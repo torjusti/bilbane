@@ -32,8 +32,7 @@ class StraightRail(Rail):
 
         self.length = length
         self.resistances = np.asarray([self.length, self.length]) * self.RESISTANCE_PER_UNIT_LENGTH
-        print(self.resistances)
-
+    
     def get_length(self, lane):
         return self.length
 
@@ -50,29 +49,31 @@ class TurnRail(Rail):
         self.angle = angle  # Number of radians rotated relative to global coordinate system by travelling along the entire rail
         self.direction = direction  # 1 for left turn, -1 for right turn
         self.resistances = np.asarray([self.get_lane_length(Rail.Lane1), self.get_lane_length(Rail.Lane2)]) * self.RESISTANCE_PER_UNIT_LENGTH
-        print(self.resistances)
-
+        
     @property
     def length(self):
         return self.radius * self.angle
 
     def get_lane_length(self, lane):
-        return (self.radius - self.direction * lane * Rail.LANE_LANE_DIST / 2) * self.angle
+        return self.get_lane_radius(lane) * self.angle
 
     def get_rail_center(self):
         # TODO: Asummes 2D
 
-        pos_vec = np.asarray([self.global_x, self.global_y])
+        pos_vec = np.asarray([self.global_x, self.global_y, 0])
 
-        orientation   = np.asarray([np.cos(self.global_angle), np.sin(self.global_angle)])
+        orientation = np.asarray([np.cos(self.global_angle), np.sin(self.global_angle), 0])
 
         # Left turn => center is 90 degrees CCW relative to orientation
         # Right turn => center is 90 degrees CW relative to orientation
-        rot_matrix    = np.asarray([[0, -self.direction], [self.direction ,0]])
+        rot_matrix = np.asarray([[0, -self.direction, 0], [self.direction, 0, 0], [0, 0, 1]])
 
         vec_start_to_center = np.dot(rot_matrix, orientation) * self.radius
         global_center_coords = pos_vec + vec_start_to_center
         return global_center_coords
+
+    def get_lane_radius(self, lane):
+        return (self.radius - self.direction * lane * Rail.LANE_LANE_DIST / 2)
 
 
 class Track:
