@@ -23,8 +23,6 @@ class SlotCarGame(arcade.Window):
         
 
     def setup_track(self):
-        # straight_track_coordinates,turn_track_coordinated =\
-        # self.track.get_track_coordinates()
         self.track_element_list = arcade.ShapeElementList()
 
         for coord in self.track.straight_track_coordinates:
@@ -40,13 +38,7 @@ class SlotCarGame(arcade.Window):
             self.track_element_list.append(shape)
         
     
-    # def setup(self):
-        
-    #     for car in track.cars:
-    #         car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
-    #         car_sprite.center_x = INIT_CENTER_X
-    #         car_sprite.center_y = INIT_CENTER_Y
-        
+  
 
     def setup(self):
         self.setup_track()
@@ -63,8 +55,8 @@ class SlotCarGame(arcade.Window):
         difference = (self.track_bounds[1] - self.track_bounds[0])
         max_diff = difference.max()
         normalized = (coordinate - self.track_bounds[0]) / max_diff
-        # TODO calculate padding for the screen in a general way.
-        return normalized * min(SCREEN_WIDTH, SCREEN_HEIGHT)
+        # TODO calculate magic number 0.1 in a better way.
+        return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def scale_length(self, length):
         """ Scale a length from the car/track length system, to a length in
