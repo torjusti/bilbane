@@ -8,7 +8,7 @@ DEFAULT_YAW = -90
 class Rail:
     RAIL_WIDTH = .10
     LANE_EDGE_DIST = .3
-    LANE_LANE_DIST = .4
+    LANE_LANE_DIST = 60
 
     # The coordinates is the middle point of the rail in the front.
     global_x = None
@@ -120,7 +120,7 @@ class Track:
         for car in self.cars:
             rail = car.rail
 
-            car.rail_progress += delta_time * car.speed / rail.get_length(car.lane * 30)
+            car.rail_progress += delta_time * car.speed / rail.get_length(car.lane)
 
             car.rail_progress = min(car.rail_progress, 1)
 
@@ -128,8 +128,8 @@ class Track:
                 car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
                 car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
 
-                car.x += math.cos(rail.global_angle + math.pi / 2 * car.lane) * 30
-                car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * 30
+                car.x += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
             elif isinstance(rail, TurnRail):
                 circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
@@ -140,8 +140,8 @@ class Track:
 
                 yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                car.x += math.cos(yaw + math.pi / 2 * car.lane) * 30
-                car.y += math.sin(yaw + math.pi / 2 * car.lane) * 30
+                car.x += math.cos(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.y += math.sin(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
                 car.yaw = yaw * 180 / math.pi + DEFAULT_YAW
 
