@@ -1,6 +1,8 @@
 import arcade
 import math
 from visualization.utils import create_arc_outline as cao
+import numpy as np
+
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
@@ -8,13 +10,17 @@ SPRITE_SCALING_CAR = 0.25
 INIT_CENTER_X = SCREEN_WIDTH/2
 INIT_CENTER_Y = SCREEN_HEIGHT/2
 
+
 class SlotCarGame(arcade.Window):
     space_pressed = False
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, track):
         super().__init__(width, height)
-
+        self.track = track
+        self.car_sprites = arcade.SpriteList()
+        self.track_bounds = self.track.get_track_bounds()
         arcade.set_background_color(arcade.color.WHITE)
+        
 
     def setup_track(self):
         straight_track_coordinates,turn_track_coordinated =\
@@ -31,15 +37,31 @@ class SlotCarGame(arcade.Window):
             self.track_element_list.append(shape)
         
     
-    def setup(self, track):
-        self.track = track
-        self.car_sprites = arcade.SpriteList()
+    # def setup(self):
+        
+    #     for car in track.cars:
+    #         car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
+    #         car_sprite.center_x = INIT_CENTER_X
+    #         car_sprite.center_y = INIT_CENTER_Y
+        
+
+    def setup(self):
         self.setup_track()
-        for car in track.cars:
+        for car in self.track.cars:
             car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
-            car_sprite.center_x = INIT_CENTER_X
-            car_sprite.center_y = INIT_CENTER_Y
+            car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
+
+    def transform(self, x, y):
+        """
+        Take car and track coordinates, and calculate to pixel coordinates.
+        """
+        coordinate = np.array([x, y])
+        difference = (self.track_bounds[1] - self.track_bounds[0])
+        max_diff = difference.max()
+        normalized = (coordinate - self.track_bounds[0]) / max_diff
+        # TODO calculate magic number 0.1 in a better way.
+        return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def on_draw(self):
         arcade.start_render()
@@ -47,18 +69,13 @@ class SlotCarGame(arcade.Window):
         for car in self.car_sprites:
             car.draw()
 
-        self.car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
-
-        self.car_sprite.center_x = INIT_CENTER_X
-        self.car_sprite.center_y = INIT_CENTER_Y         
-
     def update(self, delta_time):
         self.track.step(delta_time)
 
         for i, car_sprite in enumerate(self.car_sprites):
-            car_sprite.center_x = self.track.cars[i].x + INIT_CENTER_X
-            car_sprite.center_y = self.track.cars[i].y + INIT_CENTER_Y
-            car_sprite.angle = self.track.cars[i].yaw
+            car = self.track.cars[i]
+            car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
+            car_sprite.angle = car.yaw
 
     def on_key_press(self, symbol: int, modifiers: int):
         """
@@ -70,12 +87,9 @@ class SlotCarGame(arcade.Window):
         for car in self.track.cars:
             car.speed = speed / 9 * Car.MAX_SPEED
         """
-        self.car_sprite.center_x = self.track.cars[0].x + INIT_CENTER_X
-        self.car_sprite.center_y = self.track.cars[0].y + INIT_CENTER_Y
-        self.car_sprite.angle = self.track.cars[0].yaw
 
 
 def start_game(track):
-    game = SlotCarGame(SCREEN_WIDTH, SCREEN_HEIGHT)
-    game.setup(track)
+    game = SlotCarGame(SCREEN_WIDTH, SCREEN_HEIGHT, track)
+    game.setup()
     arcade.run()
