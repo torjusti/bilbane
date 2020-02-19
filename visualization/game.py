@@ -5,8 +5,8 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
 SPRITE_SCALING_CAR = 0.25
-INIT_CENTER_X = SCREEN_WIDTH/4
-INIT_CENTER_Y = SCREEN_HEIGHT/4
+INIT_CENTER_X = SCREEN_WIDTH/2
+INIT_CENTER_Y = SCREEN_HEIGHT/2
 
 class SlotCarGame(arcade.Window):
     space_pressed = False
@@ -46,7 +46,6 @@ class SlotCarGame(arcade.Window):
         self.track_element_list.draw()
         for car in self.car_sprites:
             car.draw()
-        self.track.get_track_coordinates(INIT_CENTER_X,INIT_CENTER_Y)
 
         self.car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
 

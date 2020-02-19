@@ -97,9 +97,10 @@ class Track:
         pass
 
     def get_track_coordinates(self,init_x,init_y):
-        """" Returns one array for with coordinates for straight rails, x_start,y_start,x_end, y_end
-            and one array with coordinates for turn rails, x_center, y_center, width, height, start_ang, end_ang
-            start_ang < end_ang
+        """" 
+        Returns one array for with coordinates for straight rails, x_start,y_start,x_end, y_end
+        and one array with coordinates for turn rails, x_center, y_center, width, height, start_ang, end_ang
+        
         """
         straight_track_coordinates = []
         turn_track_coordinates = []
@@ -126,7 +127,7 @@ class Track:
                 start_ang = initial_angle * 180/math.pi
                 end_ang = (rail.angle + initial_angle) * 180/math.pi
                 
-                if(rail.direction == -1):
+                if(rail.direction == TurnRail.Right):
                     start_ang += 90
                     end_ang += 90
 
