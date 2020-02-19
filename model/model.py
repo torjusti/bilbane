@@ -136,21 +136,22 @@ class Track:
                 y_end += math.sin(angle) * rail.length
                 straight_track_coordinates.append([x_start, y_start, x_end, y_end])
             elif isinstance(rail, TurnRail):
-                center_x = x_start + rail.radius * math.cos(rail.global_angle + rail.direction * math.pi / 2)
-                center_y = y_start + rail.radius * math.sin(rail.global_angle + rail.direction * math.pi / 2)
+                #center_x, center_y, initial_angle = self._get_turn_circle(rail)
+                center_x = x_start + rail.radius * math.cos(angle + rail.direction * math.pi / 2)
+                center_y = y_start + rail.radius * math.sin(angle + rail.direction * math.pi / 2)
                 initial_angle = math.atan2(y_start - center_y, x_start - center_x)
-                
+    
                 x_end = center_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
                 y_end = center_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
                 
-                width = abs(x_start - x_end)
-                height = abs(y_start - y_end)
-                start_ang = initial_angle * 180/math.pi
+                width = rail.radius
+                height = rail.radius
+                start_ang = (initial_angle) * 180/math.pi
                 end_ang = (rail.angle + initial_angle) * 180/math.pi
                 
                 if(rail.direction == TurnRail.Right):
-                    start_ang += 90
-                    end_ang += 90
+                     start_ang += rail.angle*180/math.pi
+                     end_ang += rail.angle*180/math.pi
 
                 angle += rail.angle
                 turn_track_coordinates.append([center_x, center_y, width, height, start_ang, end_ang]) 
