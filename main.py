@@ -17,7 +17,7 @@ def main():
 
     cars = [
         model.Car(model.Rail.Lane1, speed=500),
-        model.Car(model.Rail.Lane2, speed=100),
+        model.Car(model.Rail.Lane2, speed=500),
     ]
 
     track = model.Track(rails, cars)
