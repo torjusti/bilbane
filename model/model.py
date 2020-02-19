@@ -167,7 +167,7 @@ class Track:
 
 
 class Car:
-    MAX_SPEED = 500
+    MAX_SPEED = 5
 
     # Position of the car in the global coordinate system.
     x = 0
@@ -186,9 +186,10 @@ class Car:
     # Yaw with respect to the global coordiante system.
     yaw = DEFAULT_YAW
 
-    def __init__(self, lane, speed):
+    def __init__(self, lane, speed, key_control=False):
         self.lane = lane
         self.speed = speed
+        self.key_control = key_control
 
     def distance_moved(self, delta_time):
         """
