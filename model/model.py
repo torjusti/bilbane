@@ -72,6 +72,8 @@ class Track:
 
     def initialize_rail_coordinates(self):
         x, y, angle = 0, 0, 0
+        self.straight_track_coordinates = []
+        self.turn_track_coordinates = []
 
         for i, rail in enumerate(self.rails):
             rail.global_angle = angle
@@ -83,11 +85,22 @@ class Track:
             if isinstance(rail, StraightRail):
                 x += math.cos(angle) * rail.length
                 y += math.sin(angle) * rail.length
+                self.straight_track_coordinates.append([rail.global_x, rail.global_y, x, y])
             elif isinstance(rail, TurnRail):
                 circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
                 x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
                 y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
                 angle += rail.angle
+
+                start_ang = initial_angle 
+                end_ang = rail.angle + initial_angle
+                
+                if(rail.direction == TurnRail.Right):
+                     start_ang += 2*math.pi-rail.angle
+                     end_ang += 2*math.pi-rail.angle
+                
+                self.turn_track_coordinates.append([circle_x, circle_y, rail.radius, rail.radius,
+                 start_ang*180/math.pi, end_ang*180/math.pi])
 
         return abs(x) <= 1e-9 and abs(y) <= 1e-9
 
@@ -117,40 +130,6 @@ class Track:
         """
         pass
 
-    def get_track_coordinates(self):
-        """" 
-        Returns one array for with coordinates for straight rails, x_start,y_start,x_end, y_end
-        and one array with coordinates for turn rails, x_center, y_center, width, height, start_ang, end_ang
-        
-        """
-        straight_track_coordinates = []
-        turn_track_coordinates = []
-        x_end, y_end, angle = 0, 0, 0
-        for rail in self.rails:
-            x_start = x_end
-            y_start = y_end
-            if isinstance(rail, StraightRail):
-                x_end += math.cos(angle) * rail.length
-                y_end += math.sin(angle) * rail.length
-                straight_track_coordinates.append([x_start, y_start, x_end, y_end])
-            elif isinstance(rail, TurnRail):
-                center_x, center_y, initial_angle = self._get_turn_circle(rail)
-    
-                x_end = center_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
-                y_end = center_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
-                
-                start_ang = initial_angle 
-                end_ang = rail.angle + initial_angle
-                
-                if(rail.direction == TurnRail.Right):
-                     start_ang += 2*math.pi-rail.angle
-                     end_ang += 2*math.pi-rail.angle
-                
-                angle += rail.angle
-                turn_track_coordinates.append([center_x, center_y, rail.radius, rail.radius,
-                 start_ang*180/math.pi, end_ang*180/math.pi]) 
-
-        return straight_track_coordinates,turn_track_coordinates
         
     def step(self, delta_time):
         for car in self.cars:

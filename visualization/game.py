@@ -23,17 +23,17 @@ class SlotCarGame(arcade.Window):
         
 
     def setup_track(self):
-        straight_track_coordinates,turn_track_coordinated =\
-        self.track.get_track_coordinates()
+        # straight_track_coordinates,turn_track_coordinated =\
+        # self.track.get_track_coordinates()
         self.track_element_list = arcade.ShapeElementList()
 
-        for coord in straight_track_coordinates:
+        for coord in self.track.straight_track_coordinates:
             coord[:2] = self.transform(*coord[:2])
             coord[2:4] = self.transform(*coord[2:])
             shape = arcade.create_line(*coord,arcade.color.BLACK)
             self.track_element_list.append(shape)
 
-        for coord in turn_track_coordinated:
+        for coord in self.track.turn_track_coordinates:
             coord[:2] = self.transform(*coord[:2])
             coord[2:4] = self.scale_length(coord[2]), self.scale_length(coord[3])
             shape = cao.create_arc_outline(*coord[0:4],arcade.color.BLACK,*coord[4:6])
