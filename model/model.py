@@ -100,11 +100,12 @@ class Track:
                 continue
             circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
             coord = np.array([circle_x, circle_y])
+            radius = rail.radius + 0.5 * Rail.RAIL_WIDTH
 
-            circle_bottom_left = coord - rail.radius
+            circle_bottom_left = coord - radius
             bottom_left = np.minimum(bottom_left, circle_bottom_left)
 
-            circle_top_right = coord + rail.radius
+            circle_top_right = coord + radius
             top_right = np.maximum(top_right, circle_top_right)
 
         return bottom_left, top_right
@@ -120,13 +121,16 @@ class Track:
         for car in self.cars:
             rail = car.rail
 
-            car.rail_progress += delta_time * car.speed / rail.length
+            car.rail_progress += delta_time * car.speed / rail.get_length(car.lane)
 
             car.rail_progress = min(car.rail_progress, 1)
 
             if isinstance(rail, StraightRail):
                 car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
                 car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
+
+                car.x += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
             elif isinstance(rail, TurnRail):
                 circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
@@ -135,7 +139,12 @@ class Track:
                 car.x = circle_x + rail.radius * math.cos(angle)
                 car.y = circle_y + rail.radius * math.sin(angle)
 
-                car.yaw = (rail.global_angle + rail.angle * car.rail_progress * rail.direction) * 180 / math.pi + DEFAULT_YAW
+                yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+
+                car.x += math.cos(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.y += math.sin(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+
+                car.yaw = yaw * 180 / math.pi + DEFAULT_YAW
 
             if car.rail_progress == 1:
                 car.rail = car.rail.next_rail
