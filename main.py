@@ -16,7 +16,7 @@ def main():
     ]
 
     cars = [
-        model.Car(model.Rail.Lane1, speed=5),
+        model.Car(model.Rail.Lane1, speed=1, key_control=True),
         model.Car(model.Rail.Lane2, speed=1),
     ]
 
