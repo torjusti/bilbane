@@ -150,9 +150,10 @@ class Track:
                 end_ang = (rail.angle + initial_angle) * 180/math.pi
                 
                 if(rail.direction == TurnRail.Right):
-                     start_ang += rail.angle*180/math.pi
-                     end_ang += rail.angle*180/math.pi
-
+                     start_ang += 360-rail.angle*180/math.pi
+                     end_ang += 360-rail.angle*180/math.pi
+                #print("start ", start_ang)
+                #print("end ", end_ang)
                 angle += rail.angle
                 turn_track_coordinates.append([center_x, center_y, width, height, start_ang, end_ang]) 
 
