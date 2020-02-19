@@ -100,11 +100,12 @@ class Track:
                 continue
             circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
             coord = np.array([circle_x, circle_y])
+            radius = rail.radius + 0.5 * Rail.RAIL_WIDTH
 
-            circle_bottom_left = coord - rail.radius
+            circle_bottom_left = coord - radius
             bottom_left = np.minimum(bottom_left, circle_bottom_left)
 
-            circle_top_right = coord + rail.radius
+            circle_top_right = coord + radius
             top_right = np.maximum(top_right, circle_top_right)
 
         return bottom_left, top_right
