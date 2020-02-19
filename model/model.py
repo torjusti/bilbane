@@ -8,7 +8,7 @@ DEFAULT_YAW = -90
 class Rail:
     RAIL_WIDTH = .10
     LANE_EDGE_DIST = .3
-    LANE_LANE_DIST = 60
+    LANE_LANE_DIST = .4
 
     # The coordinates is the middle point of the rail in the front.
     global_x = None
