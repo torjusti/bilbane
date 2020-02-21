@@ -1,5 +1,5 @@
 import numpy as np
-import model
+from model import model
 
 G_ACC = 9.81
 
@@ -30,6 +30,9 @@ class Car:
     mu_pin     = None  # dimensionless
     mu_roll    = None  # dimensionless
 
+    # TODO: Use returned angle.
+    yaw = -90
+
     # Track section on which the car is situated.
     rail = None # TODO: When is this gonna be updated?
 
@@ -43,10 +46,12 @@ class Car:
     # Input from the controller. Will be converted to a voltage which drives the car
     controller_input = None # Value in interval [0,1]
 
-    def __init__(self, lane, track):
+    def __init__(self, lane, track, key_control=False):
         self.lane  = lane
         self.track = track
         self.rail = track.rails[0]
+
+        self.key_control = key_control
 
         self.controller_input = 0
 
@@ -220,6 +225,9 @@ class Car:
         n_vec  = self.get_normal_force()
         N      = np.linalg.norm(n_vec)
         f1_vec = np.asarray([-self.mu_roll*N, 0, 0])
+
+        if np.linalg.norm(self.vel_vec) < 1e-5:
+            return np.zeros_like(f1_vec.shape)
 
         return f1_vec
 

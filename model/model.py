@@ -1,8 +1,5 @@
 import math
 import numpy as np
-import car
-
-import numpy as np
 
 DEFAULT_YAW = -90
 
@@ -159,12 +156,23 @@ class Track:
         """
         pass
 
-        
+
     def step(self, delta_time):
         for car in self.cars:
+            pos, vel, angle = car.get_new_state(delta_time)
+
+            if car.is_chrashed:
+                car.x = 0
+                car.y = 0
+                car.yaw = -90
+                car.rail = self.rails[0]
+                car.is_chrashed = False
+                car.vel_vec = np.zeros_like(car.vel_vec.shape)
+                continue
+
             rail = car.rail
 
-            car.rail_progress += delta_time * car.speed / rail.get_length(car.lane)
+            car.rail_progress += np.linalg.norm(vel) / rail.length
 
             car.rail_progress = min(car.rail_progress, 1)
 
@@ -192,3 +200,6 @@ class Track:
             if car.rail_progress == 1:
                 car.rail = car.rail.next_rail
                 car.rail_progress = 0
+
+            car.pos_vec = pos
+            car.vel_vec = vel
