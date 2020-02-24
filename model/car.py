@@ -5,7 +5,7 @@ G_ACC = 9.81
 
 class Car:
     # Run-off criterion for point mass car
-    MAX_LATERAL_FORCE = 100
+    MAX_CENTRIFUGAL_FORCE = 1
 
     # Maximum voltage from track to car
     MAX_VOLTAGE = 16
@@ -91,6 +91,8 @@ class Car:
             new_vel_vec   = self.get_new_vel(delta_time)
             new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
 
+        print(new_vel_vec)
+        
         return new_pos_vec, new_vel_vec, new_angle_vec
 
     def get_new_pos(self, delta_time):
@@ -118,7 +120,10 @@ class Car:
         """
 
         new_acc_vec = self.get_total_force() / self.mass
-        new_vel_vec = self.vel_vec + new_acc_vec*delta_time
+        old_vel_vec = np.asarray([np.linalg.norm(self.vel_vec), 0, 0])
+        new_vel_vec = old_vel_vec + new_acc_vec*delta_time
+
+        new_vel_vec[0] = max(0, new_vel_vec[0])
 
         return new_vel_vec
 
@@ -207,7 +212,7 @@ class Car:
                           + self.get_lateral_pin_force() )
         
         # Crash check
-        if (total_force_vec[1] >= self.MAX_LATERAL_FORCE):
+        if (np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE):
             self.is_chrashed = True
 
         return total_force_vec
@@ -226,7 +231,7 @@ class Car:
         N      = np.linalg.norm(n_vec)
         f1_vec = np.asarray([-self.mu_roll*N, 0, 0])
 
-        if np.linalg.norm(self.vel_vec) < 1e-5:
+        if np.linalg.norm(self.vel_vec) < 1e-3:
             return np.zeros_like(f1_vec.shape)
 
         return f1_vec
@@ -243,6 +248,9 @@ class Car:
         L      = np.linalg.norm(l_vec)
         f2_vec = np.asarray([-self.mu_pin*L, 0, 0])
 
+        if np.linalg.norm(self.vel_vec) < 1e-3:
+            return np.zeros_like(f2_vec.shape)
+
         return f2_vec
 
     def get_lateral_friction(self):
@@ -258,8 +266,11 @@ class Car:
         if isinstance(self.rail, model.TurnRail):
             n_vec     = self.get_normal_force()
             N         = np.linalg.norm(n_vec)
-            centripetal_force = self.mass*np.dot(self.vel_vec, self.vel_vec)/self.rail.get_lane_radius(self.lane)
+            centripetal_force = np.linalg.norm(self.get_centrifugal_force())
             f3_vec[1] = self.rail.direction * np.minimum(self.mu_tire * N, centripetal_force) # Friction cannot exceed centripetal force
+
+        if np.linalg.norm(self.vel_vec) < 1e-3:
+            return np.zeros_like(f3_vec.shape)
 
         return f3_vec
 
@@ -342,6 +353,9 @@ class Car:
         D     = .5 * RHO * self.area * self.drag_coeff * np.dot(self.vel_vec, self.vel_vec)
         d_vec = np.asarray([-D, 0, 0])
 
+        if np.linalg.norm(self.vel_vec) < 1e-3:
+            return np.zeros_like(d_vec.shape)
+
         return d_vec
 
     def get_lateral_pin_force(self):
@@ -357,10 +371,26 @@ class Car:
         l_vec = np.zeros(3)
 
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
-            cent_f = np.dot(self.vel_vec, self.vel_vec) * self.mass / self.rail.get_lane_radius(self.lane)
-            l_vec = self.rail.direction * np.asarray([0, cent_f, 0]) - self.get_lateral_friction()
+            cent_vec = self.get_centrifugal_force()
+            l_vec = - cent_vec - self.get_lateral_friction()
 
         return l_vec
+
+    def get_centrifugal_force(self):
+        """
+        Purpose: Calculate centrifugal force experienced by the car
+        Formula: F = ma = mv^2/r
+        Returns:
+            cent_vec -- ndarray containing the components of the centrifugal force experienced by the car (in x-, y- and z-direction)
+        """
+
+        cent_vec = np.zeros(3)
+
+        if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
+            cent_magnitude = np.dot(self.vel_vec, self.vel_vec) * self.mass / self.rail.get_lane_radius(self.lane)
+            cent_vec = -self.rail.direction * np.asarray([0, cent_magnitude, 0])
+
+        return cent_vec
 
     def get_car_track_angle(self):
         # TODO: Implement for car that is not a point mass
