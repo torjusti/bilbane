@@ -43,7 +43,7 @@ class SlotCarGame(arcade.Window):
 
     def setup(self):
         self.setup_track()
-        for car in self.track.cars:
+        for _ in self.track.cars:
             car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
@@ -89,9 +89,18 @@ class SlotCarGame(arcade.Window):
         else:
             speed = 0
 
+        if symbol == arcade.key.SPACE:
+            crashed = True
+        else:
+            crashed = False
+
         for car in self.track.cars:
             if car.key_control:
-                car.speed = speed / 9 * Car.MAX_SPEED
+                if not crashed:
+                    car.speed = speed / 9 * Car.MAX_SPEED
+                car.crashed = crashed
+                   
+                
 
 
 def start_game(track):

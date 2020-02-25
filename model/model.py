@@ -112,7 +112,7 @@ class Track:
         for rail in self.rails:
             if isinstance(rail, StraightRail):
                 continue
-            circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
+            circle_x, circle_y, _ = self._get_turn_circle(rail)
             coord = np.array([circle_x, circle_y])
             radius = rail.radius + 0.5 * Rail.RAIL_WIDTH
 
@@ -135,35 +135,46 @@ class Track:
     def step(self, delta_time):
         for car in self.cars:
             rail = car.rail
+            if car.crashed:
+                if isinstance(rail, StraightRail):
+                    crash_angle = rail.global_angle
+                    car.x += car.speed * delta_time * math.cos(crash_angle)
+                    car.y += car.speed * delta_time * math.sin(crash_angle)
+                    car.yaw += 2 * car.speed 
+                elif isinstance(rail, TurnRail):
+                    crash_angle = ((car.rail_progress - 1) * rail.global_angle + rail.global_angle) % 2 * math.pi 
+                         
+                    car.x += rail.direction * car.speed * delta_time * math.cos(crash_angle)
+                    car.y += rail.direction * car.speed * delta_time * math.sin(crash_angle)
+                    car.yaw += 2 * rail.direction * car.speed
+                        
+            else:
+                car.rail_progress += delta_time * car.speed / rail.get_length(car.lane)
+                car.rail_progress = min(car.rail_progress, 1)
+                if isinstance(rail, StraightRail):
+                    car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
+                    car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
 
-            car.rail_progress += delta_time * car.speed / rail.get_length(car.lane)
+                    car.x += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                    car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                elif isinstance(rail, TurnRail):
+                    circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
-            car.rail_progress = min(car.rail_progress, 1)
+                    angle = initial_angle + rail.angle * car.rail_progress * rail.direction
 
-            if isinstance(rail, StraightRail):
-                car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
-                car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
+                    car.x = circle_x + rail.radius * math.cos(angle)
+                    car.y = circle_y + rail.radius * math.sin(angle)
 
-                car.x += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-            elif isinstance(rail, TurnRail):
-                circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
+                    yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                angle = initial_angle + rail.angle * car.rail_progress * rail.direction
+                    car.x += math.cos(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                    car.y += math.sin(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
-                car.x = circle_x + rail.radius * math.cos(angle)
-                car.y = circle_y + rail.radius * math.sin(angle)
+                    car.yaw = yaw * 180 / math.pi + DEFAULT_YAW
 
-                yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
-
-                car.x += math.cos(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                car.y += math.sin(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-
-                car.yaw = yaw * 180 / math.pi + DEFAULT_YAW
-
-            if car.rail_progress == 1:
-                car.rail = car.rail.next_rail
-                car.rail_progress = 0
+                if car.rail_progress == 1:
+                    car.rail = car.rail.next_rail
+                    car.rail_progress = 0
 
 
 class Car:
@@ -190,6 +201,8 @@ class Car:
         self.lane = lane
         self.speed = speed
         self.key_control = key_control
+        self.crashed = False
+
 
     def distance_moved(self, delta_time):
         """
