@@ -6,9 +6,9 @@ DEFAULT_YAW = -90
 
 
 class Rail:
-    RAIL_WIDTH = .10
-    LANE_EDGE_DIST = .3
-    LANE_LANE_DIST = .4
+    LANE_EDGE_DIST = .039
+    LANE_LANE_DIST = .0765
+    RAIL_WIDTH = LANE_LANE_DIST + 2 * LANE_EDGE_DIST
 
     # The coordinates is the middle point of the rail in the front.
     global_x = None
@@ -30,7 +30,7 @@ class StraightRail(Rail):
 
     def get_length(self, lane):
         return self.length
-    
+
 
 class TurnRail(Rail):
     Left = 1
@@ -43,7 +43,6 @@ class TurnRail(Rail):
         self.radius = radius  # counted from the middle of the rail
         self.angle = angle
         self.direction = direction
-    
 
     @property
     def length(self):
@@ -131,7 +130,6 @@ class Track:
         """
         pass
 
-        
     def step(self, delta_time):
         for car in self.cars:
             rail = car.rail
