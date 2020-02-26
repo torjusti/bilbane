@@ -10,8 +10,22 @@ import os
 DELTA_TIME = 1 / 60
 
 def get_state(track, car):
-    """ Create a vector representing the position and velocity of `car` on `track`. """
-    return np.concatenate((np.array([track.rails.index(car.rail), car.rail_progress]), car.vel_vec)).astype(float)
+    """ Create a vector representing the position and velocity of `car` on `track`, as
+    well as information about the following two rails on the track. """
+    rail_information = [car.rail_progress]
+
+    rail = car.rail
+
+    for i in range(3):
+        rail_information.extend([
+            rail.radius if isinstance(rail, model.TurnRail) else 0,
+            rail.direction if isinstance(rail, model.TurnRail) else 0,
+            rail.length,
+        ])
+
+        rail = rail.next_rail
+
+    return np.concatenate((np.array(rail_information), car.vel_vec))
 
 
 class SlotCarEnv:
@@ -95,14 +109,14 @@ def train(track, car):
         print(f'Episode {episode}: {episode_reward}, laps: {car.laps_completed}')
 
         if episode % checkpoint == checkpoint - 1:
-            reward = 0
+            total_reward = 0
 
             state, done = env.reset(), False
 
             for step in range(1000):
                 action = agent.get_action(state).item()
                 next_state, reward, done = env.step(action)
-                reward += reward
+                total_reward += reward
                 state = next_state
 
                 if done:
