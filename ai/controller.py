@@ -10,8 +10,8 @@ import os
 DELTA_TIME = 1 / 60
 
 def get_state(track, car):
-    """ Create a vector representing the position and velocity of `car` on `track`, as
-    well as information about the following two rails on the track. """
+    """ Create a vector representing the position and velocity of `car` on `track`,
+    as well as information about the following two rails on the track. """
     rail_information = [car.rail_progress]
 
     rail = car.rail
@@ -88,8 +88,6 @@ def train(track, car):
         noise.reset()
 
         for step in range(1000):
-            # The network-local actions are in the range [0, 1], so we need to ensure
-            # that the action we perform is scaled correctly for the environment.
             action = (agent.get_action(state) + noise()).clip(0, 1)
 
             next_state, reward, done = env.step(action.item())
@@ -122,7 +120,7 @@ def train(track, car):
                 if done:
                     break
 
-            print(f'Reward on test episode: {reward / 10}')
+            print(f'Reward on test episode: {total_reward}')
 
             agent.save_model(f'actor-{episode}.pth', f'critic-{episode}.pth')
 
