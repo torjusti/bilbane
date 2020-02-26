@@ -90,7 +90,7 @@ class Track:
                 circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
                 x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
                 y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
-                angle += rail.angle
+                angle += rail.angle * rail.direction
 
                 start_ang = initial_angle 
                 end_ang = rail.angle + initial_angle
