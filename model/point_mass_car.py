@@ -4,7 +4,7 @@ from model import model
 G_ACC = 9.81
 
 
-class PointMassCar:
+class Car:
     # Run-off criterion for point mass car
     MAX_CENTRIFUGAL_FORCE = 1
 
@@ -30,7 +30,7 @@ class PointMassCar:
     mu_tire = None  # dimensionless
     mu_pin = None  # dimensionless
     mu_roll = None  # dimensionless
-    mu_axel = None  # dimensionless
+    motor_coeff = None  # N
 
     # TODO: Use returned angle.
     yaw = -90
@@ -39,7 +39,7 @@ class PointMassCar:
     rail = None  # TODO: When is this gonna be updated?
 
     # How far along the car is on the current rail.
-    rail_progress = 0  # TODO: What is this here for?
+    rail_progress = 0
 
     # Lane and track the car is on
     lane = None
@@ -68,7 +68,7 @@ class PointMassCar:
         self.mu_tire = .9  # dimensionless
         self.mu_pin = .04  # dimensionless
         self.mu_roll = .01  # dimensionless
-        self.mu_axel = 1  # dimensionless
+        self.motor_coeff = .1  # N
 
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
@@ -93,8 +93,6 @@ class PointMassCar:
             new_pos_vec = self.get_new_pos(delta_time)
             new_vel_vec = self.get_new_vel(delta_time)
             new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
-
-        print(new_vel_vec)
 
         return new_pos_vec, new_vel_vec, new_angle_vec
 
@@ -131,23 +129,6 @@ class PointMassCar:
         return new_vel_vec
 
     def get_new_angles(self, new_pos_vec, new_rail):
-        """
-        Purpose: Get new rotation of the car relative to global coordinate system
-        Args:
-            new_pos_vec -- ndarray containing new car position (x,y,z)
-            new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
-        Returns:
-            new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
-        """
-
-        if self.is_point_mass:
-            angle_vec = self.get_new_point_angles(new_pos_vec, new_rail)
-        else:
-            angle_vec = self.get_new_body_angles(new_pos_vec, new_rail)
-
-        return angle_vec
-
-    def get_new_point_angles(self, new_pos_vec, new_rail):
         """
         Purpose: Get new rotation of the car relative to global coordinate system
         Assumptions:
@@ -193,9 +174,6 @@ class PointMassCar:
         new_angle_vec = np.asarray([0, 0, yaw])
         return new_angle_vec
 
-    def get_new_body_angles(self):
-        pass
-
     # ---------------------------------------------------------------------------
     # Calculate forces
 
@@ -226,15 +204,19 @@ class PointMassCar:
         """
         Purpose: Calculate rolling resistance acing on the car
         Formula: F_roll = mu_roll * N,   N = normal force
-        Returns: 
+        Returns:
             f1_vec -- ndarray containing the components of the rolling resistance acting on the car (in x-, y- and z-direction)
         """
+
+        # TODO: Make valid for skidding car
 
         n_vec = self.get_normal_force()
         N = np.linalg.norm(n_vec)
         track_friction = self.mu_roll * N
-        axel_friction = np.dot(self.vel_vec, self.vel_vec) * mu_axel
-        f1_vec = np.asarray([-(track_friction + axel_friction), 0, 0])
+
+        motor_friction = self.motor_coeff  # TODO: Make more realistic
+
+        f1_vec = np.asarray([-(track_friction + motor_friction), 0, 0])
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
             return np.zeros_like(f1_vec.shape)
@@ -245,7 +227,7 @@ class PointMassCar:
         """
         Purpose: Calculate friction force acting on pin from rail
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
-        Returns: 
+        Returns:
             f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction)
         """
 
@@ -262,7 +244,7 @@ class PointMassCar:
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: F_tire = min(mu_tire * N, m * v^2 / r),  N = normal force
-        Returns: 
+        Returns:
             f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 
@@ -283,7 +265,7 @@ class PointMassCar:
     def get_magnet_force(self):
         """
         Purpose: Calculate force from lane acting on the car's magnet
-        Returns: 
+        Returns:
             m_vec -- ndarray containing the components of the magnetic force acting on the car (in x-, y- and z-direction)
         """
 
@@ -297,7 +279,7 @@ class PointMassCar:
         """
         Purpose: Calculate gravitational force acting on the car
         Formula: G = mg
-        Returns: 
+        Returns:
             g_vec -- ndarray containing the components of the gravitational force acting on the car (in x-, y- and z-direction)
         """
 
@@ -309,7 +291,7 @@ class PointMassCar:
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: sum(F_z) = 0 => N = - (G + m_vec)
-        Returns: 
+        Returns:
             n_vec -- ndarray containing the components of the normal force acting on the car (in x-, y- and z-direction)
         """
 
@@ -327,7 +309,7 @@ class PointMassCar:
         Formula: T = eta * U^2 / R,     eta = efficieny
                                         U   = track voltage
                                         R   = total resitance of the car's lane
-        Returns: 
+        Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
 
@@ -340,7 +322,7 @@ class PointMassCar:
         else:
             raise ValueError("Invalid lane value")
 
-        T = self.motor_eta * (U ** 2) / R
+        T = self.motor_eta * (U ** 2) / (R * max(np.linalg.norm(self.vel_vec), 0.1))
         t_vec = np.asarray([T, 0, 0])
 
         return t_vec
@@ -349,7 +331,7 @@ class PointMassCar:
         """
         Purpose: Calculate drag force acting on tires from track
         Formula: D = .5 * rho * A * C_d * v^2
-        Returns: 
+        Returns:
             d_vec -- ndarray containing the components of the drag force acting on the car (in x-, y- and z-direction)
         """
 
@@ -370,7 +352,7 @@ class PointMassCar:
         Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
                  sum(F_centrifugal) = ma = m * v^2 / r
                  => lateral pin force = m * v^2 / r - lateral friction
-        Returns: 
+        Returns:
             l_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 
@@ -397,3 +379,7 @@ class PointMassCar:
             cent_vec = -self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
+
+    def get_car_track_angle(self):
+        # TODO: Implement for car that is not a point mass
+        return 0
