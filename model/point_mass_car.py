@@ -3,7 +3,7 @@ from model import model
 
 G_ACC = 9.81
 
-class Car:
+class PointMassCar:
     # Run-off criterion for point mass car
     MAX_CENTRIFUGAL_FORCE = 1
 
