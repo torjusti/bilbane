@@ -21,14 +21,15 @@ class Car:
     vel_vec = None
     acc_vec = None
 
-    mass       = None  # kg
-    area       = None  # m^2
-    drag_coeff = None  # dimensionless
-    mag_coeff  = None  # N
-    motor_eta  = None  # dimensionless
-    mu_tire    = None  # dimensionless
-    mu_pin     = None  # dimensionless
-    mu_roll    = None  # dimensionless
+    mass        = None  # kg
+    area        = None  # m^2
+    drag_coeff  = None  # dimensionless
+    mag_coeff   = None  # N
+    motor_eta   = None  # dimensionless
+    mu_tire     = None  # dimensionless
+    mu_pin      = None  # dimensionless
+    mu_roll     = None  # dimensionless
+    motor_coeff = None # N
 
     # TODO: Use returned angle.
     yaw = -90
@@ -92,8 +93,6 @@ class Car:
             new_vel_vec   = self.get_new_vel(delta_time)
             new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
 
-        print(new_vel_vec)
-        
         return new_pos_vec, new_vel_vec, new_angle_vec
 
     def get_new_pos(self, delta_time):
@@ -232,7 +231,7 @@ class Car:
         N      = np.linalg.norm(n_vec)
         track_friction = self.mu_roll*N
 
-        motor_friction = motor_coeff # TODO: Make more realistic
+        motor_friction = self.motor_coeff # TODO: Make more realistic
 
         f1_vec = np.asarray([-(track_friction + motor_friction), 0, 0])
 
@@ -339,7 +338,7 @@ class Car:
         else:
             raise ValueError("Invalid lane value")
 
-        T = self.motor_eta*(U**2)/(R*max(np.linalg.norm(self.vel_vec), 0.01))
+        T = self.motor_eta*(U**2)/(R*max(np.linalg.norm(self.vel_vec), 0.1))
         t_vec = np.asarray([T, 0, 0])
 
         return t_vec
