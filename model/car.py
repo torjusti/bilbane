@@ -58,14 +58,15 @@ class Car:
         self.is_chrashed   = False
         self.is_point_mass = True
 
-        self.mass       = 0.08       # kg
-        self.area       = 0.002268   # m^2
-        self.drag_coeff = 0.35       # dimensionless
-        self.mag_coeff  = 1.0        # N
-        self.motor_eta  = .95        # dimensionless
-        self.mu_tire    = .9         # dimensionless
-        self.mu_pin     = .04        # dimensionless
-        self.mu_roll    = .01        # dimensionless
+        self.mass        = 0.08       # kg
+        self.area        = 0.002268   # m^2
+        self.drag_coeff  = 0.35       # dimensionless
+        self.mag_coeff   = 1.0        # N
+        self.motor_eta   = .95        # dimensionless
+        self.mu_tire     = .9         # dimensionless
+        self.mu_pin      = .04        # dimensionless
+        self.mu_roll     = .01        # dimensionless
+        self.motor_coeff = .1         # N
 
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
@@ -229,7 +230,11 @@ class Car:
 
         n_vec  = self.get_normal_force()
         N      = np.linalg.norm(n_vec)
-        f1_vec = np.asarray([-self.mu_roll*N, 0, 0])
+        track_friction = self.mu_roll*N
+
+        motor_friction = motor_coeff # TODO: Make more realistic
+
+        f1_vec = np.asarray([-(track_friction + motor_friction), 0, 0])
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
             return np.zeros_like(f1_vec.shape)
@@ -334,7 +339,7 @@ class Car:
         else:
             raise ValueError("Invalid lane value")
 
-        T = self.motor_eta*(U**2)/R
+        T = self.motor_eta*(U**2)/(R*max(np.linalg.norm(self.vel_vec), 0.01))
         t_vec = np.asarray([T, 0, 0])
 
         return t_vec
