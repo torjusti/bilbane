@@ -9,35 +9,38 @@ class RigidBodyCar(PointMassCar):
     MAX_SKID_ANGLE = np.pi / 6
 
     # Car properties
-    length         = None
-    width          = None
-    height         = None
+    length = None
+    width = None
+    height = None
     rho_front_axel = None
-    rho_rear_axel  = None
-    rho_pin        = None
-    rho_mag        = None
-    mag_width      = None
-    inertia        = None
+    rho_rear_axel = None
+    rho_pin = None
+    rho_mag = None
+    mag_width = None
+    inertia = None
+    mu_kin = None
 
     def __init__(self, lane, track, key_control=False):
         super().__init__(lane, track, key_control)
         self.is_point_mass = False
 
         self.length = 0.142
-        self.width  = 0.061
+        self.width = 0.061
         self.height = 0.025
 
         self.rho_pin = np.asarray([0.068, 0, 0])
         self.rho_mag = np.asarray([-0.032, 0, 0])
 
         self.rho_front_axel = np.asarray([0.054, 0, 0])
-        self.rho_rear_axel  = np.asarray([-0.037, 0, 0])
+        self.rho_rear_axel = np.asarray([-0.037, 0, 0])
 
         self.mag_width = 0.025
 
-        ixx = self.mass * (self.width  ** 2 + self.height ** 2) / 12
+        self.mu_kin = 0.5
+
+        ixx = self.mass * (self.width ** 2 + self.height ** 2) / 12
         iyy = self.mass * (self.length ** 2 + self.height ** 2) / 12
-        izz = self.mass * (self.length ** 2 + self.width  ** 2) / 12
+        izz = self.mass * (self.length ** 2 + self.width ** 2) / 12
         self.inertia = np.asarray([[ixx, 0, 0], [0, iyy, 0], [0, 0, izz]])
 
     def get_new_pos(self, delta_time):
@@ -130,12 +133,16 @@ class RigidBodyCar(PointMassCar):
             f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction)
         """
 
+        f2_vec = np.zeros(3)
+
         l_vec = self.get_lateral_pin_force()
         L = np.linalg.norm(l_vec)
         f2_vec_ = np.asarray([-self.mu_pin * L, 0, 0])
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
             return np.zeros_like(f2_vec_.shape)
+
+        # TODO: Rotate to cg-coordinates
 
         return f2_vec
 
@@ -150,11 +157,21 @@ class RigidBodyCar(PointMassCar):
         f3_vec = np.zeros(3)
 
         if isinstance(self.rail, model.TurnRail):
+
+            rho_w = np.linalg.norm((self.rho_front_axel + self.rho_rear_axel) / 2)
+
+            f_hjul_magnitude = - np.linalg.norm(self.get_pin_torque()) / rho_w
+            f_hjul = np.asarray([0, -f_hjul_magnitude, 0])
             n_vec = self.get_normal_force()
             N = np.linalg.norm(n_vec)
-            centripetal_force = np.linalg.norm(self.get_centrifugal_force())
-            f3_vec[1] = self.rail.direction * np.minimum(self.mu_tire * N,
-                                                         centripetal_force)  # Friction cannot exceed centripetal force
+            f_sladd_magnitude = self.mu_tire * N
+
+            f_kin = - self.mu_kin * N * self.rotate(self.vel_vec, self.phi) / np.linalg.norm(self.vel_vec)
+
+            if (f_hjul_magnitude <= f_sladd_magnitude):
+                f3_vec = -f_hjul
+            else:
+                f3_vec = -f_hjul - f_kin
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
             return np.zeros_like(f3_vec.shape)
@@ -184,6 +201,8 @@ class RigidBodyCar(PointMassCar):
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
 
+        # TODO: Make valid for skidding
+
         U = self.controller_input * self.MAX_VOLTAGE
 
         if (self.lane == model.Rail.Lane1):
@@ -208,12 +227,16 @@ class RigidBodyCar(PointMassCar):
 
         # TODO: Make valid for skidding car (skid => area and drag coefficient change)
 
+        d_vec = np.zeros(3)
+
         RHO = 1.2  # density of air
         D = .5 * RHO * self.area * self.drag_coeff * np.dot(self.vel_vec, self.vel_vec)
-        d_vec = np.asarray([-D, 0, 0])
+        d_vec_ = np.asarray([-D, 0, 0])
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
-            return np.zeros_like(d_vec.shape)
+            return np.zeros_like(d_vec_.shape)
+
+        # TODO: Rotate to cg-coordinates
 
         return d_vec
 
@@ -229,9 +252,15 @@ class RigidBodyCar(PointMassCar):
 
         l_vec = np.zeros(3)
 
-        if isinstance(self.rail, model.TurnRail):  # Non-zero only if car is on a TurnRail
-            cent_vec = self.get_centrifugal_force()
-            l_vec = - cent_vec - self.get_lateral_friction()
+        rail_center_to_cg_vec = self.get_rail_center_to_cg()
+        radial_unit_vector = rail_center_to_cg_vec / np.linalg.norm(rail_center_to_cg_vec)
+        radial_speed = np.dot(self.vel_vec, radial_unit_vector)
+
+        l_vec_magnitude = 1 / np.cos(self.ksi) * (self.mass * (radial_speed ** 2) / self.rail.get_lane_radius(self.lane) - np.dot(self.get_lateral_friction(), radial_unit_vector))
+
+        l_vec_ = np.asarray([0, -l_vec_magnitude, 0])
+
+        # TODO: Rotate to cg-coordinates
 
         return l_vec
 
@@ -251,12 +280,24 @@ class RigidBodyCar(PointMassCar):
 
         return cent_vec
 
-    ###################################################################################################################################
+    ####################################################################################################################
     # Calculate momenta
 
-    ###################################################################################################################################
+    def get_pin_torque(self):
+        pass
+
+    ####################################################################################################################
     # Helper functions
 
     def get_car_track_angle(self):
         # TODO: Implement for car that is not a point mass
         return 0
+
+    def rotate(self, vector, angle):
+        rot_matrix = np.asarray([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
+        rotated_vector = np.dot(rot_matrix, vector)
+        return rotated_vector
+
+    def get_rail_center_to_cg(self):
+        rail_center = self.rail.get_rail_center()
+        return self.pos_vec - rail_center
