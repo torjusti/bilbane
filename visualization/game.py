@@ -21,8 +21,9 @@ class SlotCarGame(arcade.Window):
         self.car_sprites = arcade.SpriteList()
         self.track_bounds = self.track.get_track_bounds()
         self.explosions_list = None
-        self.crashed = False #TODO solve this in a better way
+        
         self.explosion_texture_list = []
+        self.cars_crashed = []
 
         columns = 8
         count = 51
@@ -31,7 +32,8 @@ class SlotCarGame(arcade.Window):
         file_name = 'visualization/images/spritesheet.png'
 
         # Load the explosions from a sprite sheet
-        self.explosion_texture_list = arcade.load_spritesheet(file_name, sprite_width, sprite_height, columns, count)
+        self.explosion_texture_list = arcade.load_spritesheet(file_name, sprite_width,
+         sprite_height, columns, count)
 
 
         arcade.set_background_color(arcade.color.WHITE)
@@ -89,21 +91,31 @@ class SlotCarGame(arcade.Window):
 
     def update(self, delta_time):
         self.track.step(delta_time)
-
+        
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
             car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
             car_sprite.angle = car.yaw
-            if self.crashed and car.key_control: #TODO solve this in a better way
-                explosion = Explosion(self.explosion_texture_list)
-                explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
-                explosion.update()
-                self.explosions_list.append(explosion)
-                self.crashed = False
-            elif car.crashed and car.key_control: #TODO solve this in a better way
-                self.explosions_list.update()
-                for explosion in self.explosions_list:
+            
+            if car.crashed:
+                if i not in self.cars_crashed:
+                    self.cars_crashed.append(i)
+                    explosion = Explosion(self.explosion_texture_list)
                     explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
+                    explosion.update()
+                    self.explosions_list.append(explosion)
+                else: 
+                    self.explosions_list.update()
+                    for explosion in self.explosions_list:
+                        explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
+            else:
+                self.explosions_list.update()
+                if i in self.cars_crashed:
+                    self.cars_crashed.remove(i) 
+                        
+            
+                
+
                
 
     def on_key_press(self, symbol: int, modifiers: int):
@@ -131,19 +143,18 @@ class SlotCarGame(arcade.Window):
 class Explosion(arcade.Sprite):
     """ This class creates an explosion animation """
 
-    def __init__(self, texture_list):
+    def __init__(self, texture_list): #fix an explosion to a car
         super().__init__()
 
         # Start at the first frame
         self.current_texture = 0
         self.textures = texture_list
-
+        
+    
     def update(self):
 
         # Update to the next frame of the animation. If we are at the end
         # of our frames, then delete this sprite.
-        
-
         self.current_texture += 1
         if self.current_texture < len(self.textures):
             self.set_texture(self.current_texture)
