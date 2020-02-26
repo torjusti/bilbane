@@ -3,18 +3,19 @@ from model import model
 
 G_ACC = 9.81
 
+
 class Car:
     # Run-off criterion for point mass car
-    MAX_CENTRIFUGAL_FORCE = 1
+    MAX_CENTRIFUGAL_FORCE = .5
 
     # Maximum voltage from track to car
-    MAX_VOLTAGE = 16
+    TRACK_VOLTAGE = 12
 
     # Boolean to check if car is treated as point mass
     is_point_mass = None
 
     # Boolean to check if car has crashed
-    is_chrashed = None
+    is_crashed = None
 
     # Position of the car in the global coordinate system.
     pos_vec = None
@@ -29,16 +30,17 @@ class Car:
     mu_tire     = None  # dimensionless
     mu_pin      = None  # dimensionless
     mu_roll     = None  # dimensionless
-    motor_coeff = None # N
+    motor_coeff = None  # N/(m/s)
+    max_power   = None  # W
 
     # TODO: Use returned angle.
-    yaw = -90
+    phi = -90
 
     # Track section on which the car is situated.
-    rail = None # TODO: When is this gonna be updated?
+    rail = None
 
     # How far along the car is on the current rail.
-    rail_progress = 0 # TODO: What is this here for?
+    rail_progress = 0
 
     # Lane and track the car is on
     lane = None
@@ -56,7 +58,7 @@ class Car:
 
         self.controller_input = 0
 
-        self.is_chrashed   = False
+        self.is_crashed   = False
         self.is_point_mass = True
 
         self.mass        = 0.08       # kg
@@ -67,7 +69,9 @@ class Car:
         self.mu_tire     = .9         # dimensionless
         self.mu_pin      = .04        # dimensionless
         self.mu_roll     = .01        # dimensionless
-        self.motor_coeff = .1         # N
+        self.mu_axel     = .1         # N
+        self.motor_coeff = .1         # N/(m/s)
+        self.max_power   = 8.3        # W
 
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
@@ -88,7 +92,7 @@ class Car:
         new_angle_vec = None
         new_vel_vec   = None
 
-        if (not self.is_chrashed):
+        if not self.is_crashed:
             new_pos_vec   = self.get_new_pos(delta_time)
             new_vel_vec   = self.get_new_vel(delta_time)
             new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
@@ -140,7 +144,7 @@ class Car:
         if self.is_point_mass:
             angle_vec = self.get_new_point_angles(new_pos_vec, new_rail)
         else:
-            angle_vec = self.get_new_body_angles(new_pos_vec, new_rail)
+            angle_vec = self.get_new_body_angles()
 
         return angle_vec
 
@@ -154,7 +158,7 @@ class Car:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
         Returns: 
-            new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
+            new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, phi)
         """
 
         # If on a turn
@@ -165,31 +169,31 @@ class Car:
             
             pos_vec_rel    = new_pos_vec - pos_vec_COR # Vector from centre of rail to car
             pos_vec_up     = np.asarray([0, self.rail.direction * lane_radius, 0]) # Vector from centre of rail in positive y(local) coord
-            dot_product    = np.dot(pos_vec_rel, pos_vec_up) # Dotproduct between the two
+            dot_product    = np.dot(pos_vec_rel, pos_vec_up) # Dot product between the two
             relative_angle = np.arccos(np.clip(dot_product/(lane_radius*lane_radius), -1.0, 1.0)) # Angle between Y(global) and y(local) axis
 
             if pos_vec_rel[0] < 0: # If relative position vector points to the right
-                yaw = relative_angle # Angle between X(global) and x(local) axis
+                phi = relative_angle # Angle between X(global) and x(local) axis
             else:
-                yaw = 2*np.pi - relative_angle # Angle between X(global) and x(local) axis
+                phi = 2*np.pi - relative_angle # Angle between X(global) and x(local) axis
             
             if left_turn:
-                yaw = yaw + np.pi # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
-            
-            if (yaw >= 2*np.pi):
-                yaw = yaw - 2*np.pi
-            if (yaw < 0):
-                yaw = yaw + 2*np.pi
+                phi = phi + np.pi # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
+
+            if phi >= 2*np.pi:
+                phi = phi - 2*np.pi
+            if phi < 0:
+                phi = phi + 2*np.pi
         
         # Else we are on a straight
         else:
-            yaw = new_rail.global_angle
+            phi = new_rail.global_angle
 
-        new_angle_vec = np.asarray([0, 0, yaw])
+        new_angle_vec = np.asarray([0, 0, phi])
         return new_angle_vec
 
     def get_new_body_angles(self):
-        pass
+        return 0
 
     # ---------------------------------------------------------------------------
     # Calculate forces
@@ -202,6 +206,8 @@ class Car:
         """
 
         total_force_vec = ( self.get_rolling_resistance()
+                          + self.get_motor_brake_force()
+                          + self.get_axel_friction()
                           + self.get_pin_friction()
                           + self.get_lateral_friction()
                           + self.get_magnet_force()
@@ -212,8 +218,8 @@ class Car:
                           + self.get_lateral_pin_force() )
         
         # Crash check
-        if (np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE):
-            self.is_chrashed = True
+        if np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE:
+            self.is_crashed = True
 
         return total_force_vec
 
@@ -231,14 +237,46 @@ class Car:
         N      = np.linalg.norm(n_vec)
         track_friction = self.mu_roll*N
 
-        motor_friction = self.motor_coeff # TODO: Make more realistic
-
-        f1_vec = np.asarray([-(track_friction + motor_friction), 0, 0])
+        f1_vec = np.asarray([-track_friction, 0, 0])
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
             return np.zeros_like(f1_vec.shape)
 
         return f1_vec
+
+    def get_motor_brake_force(self):
+        """
+        Purpose: Calculate motor brake force
+        Formula: Braking torque proportional to speed
+        Return:
+            mbrake_vec -- ndarray containing the components of the motor brake force acting on the car (in x-, y- and z-direction)
+        # TODO: Update according to this: https://www.ormec.com/Portals/ormec/Library/Documents/Controllers/Orion/TechNotes/tn038.pdf
+        """
+
+        mbrake_vec = np.asarray([-self.motor_coeff*np.linalg.norm(self.vel_vec), 0, 0])
+
+        if not self.controller_input == 0:
+            return np.zeros_like(mbrake_vec.shape)
+
+        if np.linalg.norm(self.vel_vec) < 1e-3:
+            return np.zeros_like(mbrake_vec.shape)
+
+        return mbrake_vec
+
+    def get_axel_friction(self):
+        """
+        Purpose: Calculate axel friction force
+        Return:
+            axel_fric_vec -- ndarray containing the components of the axel friction force acting on the car (in x-, y- and z-direction)
+        """
+
+        axel_fric_vec = np.asarray([-self.mu_axel, 0, 0])
+
+        if np.linalg.norm(self.vel_vec) < 1e-3:
+            return np.zeros_like(axel_fric_vec.shape)
+
+        return axel_fric_vec
+
 
     def get_pin_friction(self):
         """
@@ -322,23 +360,12 @@ class Car:
     def get_thrust_force(self):
         """
         Purpose: Calculate thrust force acting on the car's tires from track, due to forced rotation of the tires (by the car's motor)
-        Formula: T = eta * U^2 / R,     eta = efficieny
-                                        U   = track voltage
-                                        R   = total resitance of the car's lane
+        Formula: T = C*P/v
         Returns: 
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
 
-        U = self.controller_input * self.MAX_VOLTAGE
-
-        if (self.lane == model.Rail.Lane1):
-            R = self.track.resistances[0]
-        elif (self.lane == model.Rail.Lane2):
-            R = self.track.resistances[1]
-        else:
-            raise ValueError("Invalid lane value")
-
-        T = self.motor_eta*(U**2)/(R*max(np.linalg.norm(self.vel_vec), 0.1))
+        T = self.controller_input*self.max_power/max(0.12, np.linalg.norm(self.vel_vec))
         t_vec = np.asarray([T, 0, 0])
 
         return t_vec

@@ -161,12 +161,12 @@ class Track:
         for car in self.cars:
             pos, vel, angle = car.get_new_state(delta_time)
 
-            if car.is_chrashed:
+            if car.is_crashed:
                 car.x = 0
                 car.y = 0
-                car.yaw = -90
+                car.phi = -90
                 car.rail = self.rails[0]
-                car.is_chrashed = False
+                car.is_crashed = False
                 car.vel_vec = np.zeros_like(car.vel_vec.shape)
                 continue
 
@@ -190,12 +190,12 @@ class Track:
                 car.x = circle_x + rail.radius * math.cos(angle)
                 car.y = circle_y + rail.radius * math.sin(angle)
 
-                yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+                phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                car.x += math.cos(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                car.y += math.sin(yaw + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.x += math.cos(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.y += math.sin(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
-                car.yaw = yaw * 180 / math.pi + DEFAULT_YAW
+                car.phi = phi * 180 / math.pi + DEFAULT_YAW
 
             if car.rail_progress == 1:
                 car.rail = car.rail.next_rail

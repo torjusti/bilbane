@@ -77,7 +77,7 @@ class SlotCarGame(arcade.Window):
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
             car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
-            car_sprite.angle = car.yaw
+            car_sprite.angle = car.phi
 
     def on_key_press(self, symbol: int, modifiers: int):
         """
