@@ -72,13 +72,13 @@ class Car:
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
         self.acc_vec = np.zeros(3)
-    
+
     def get_new_state(self, delta_time):
         """
         Purpose: Get new state of the car
         Args:
             delta_time -- time step in seconds
-        Returns: 
+        Returns:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_vel_vec -- ndarray containing new car velocity (u, v, w)
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
@@ -100,7 +100,7 @@ class Car:
         Purpose: Get new position of the car
         Args:
             delta_time -- time step in seconds
-        Returns: 
+        Returns:
             new_pos_vec -- ndarray containing new car position (x,y,z)
         """
 
@@ -115,7 +115,7 @@ class Car:
         Purpose: Get new velocity of the car
         Args:
             delta_time -- time step in seconds
-        Returns: 
+        Returns:
             new_vel_vec -- ndarray containing new car velocity (u, v, w)
         """
 
@@ -133,7 +133,7 @@ class Car:
         Args:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
-        Returns: 
+        Returns:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
@@ -153,7 +153,7 @@ class Car:
         Args:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
-        Returns: 
+        Returns:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
@@ -162,7 +162,7 @@ class Car:
             pos_vec_COR = new_rail.get_rail_center()
             lane_radius = new_rail.get_lane_radius(self.lane)
             left_turn   = (new_rail.direction == model.TurnRail.Left)
-            
+
             pos_vec_rel    = new_pos_vec - pos_vec_COR # Vector from centre of rail to car
             pos_vec_up     = np.asarray([0, self.rail.direction * lane_radius, 0]) # Vector from centre of rail in positive y(local) coord
             dot_product    = np.dot(pos_vec_rel, pos_vec_up) # Dotproduct between the two
@@ -172,15 +172,15 @@ class Car:
                 yaw = relative_angle # Angle between X(global) and x(local) axis
             else:
                 yaw = 2*np.pi - relative_angle # Angle between X(global) and x(local) axis
-            
+
             if left_turn:
                 yaw = yaw + np.pi # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
-            
+
             if (yaw >= 2*np.pi):
                 yaw = yaw - 2*np.pi
             if (yaw < 0):
                 yaw = yaw + 2*np.pi
-        
+
         # Else we are on a straight
         else:
             yaw = new_rail.global_angle
@@ -197,7 +197,7 @@ class Car:
     def get_total_force(self):
         """
         Purpose: Calculate total force on car, and check if it exceeds given force limit
-        Returns: 
+        Returns:
             total_force_vec -- ndarray containing force acting on the car (in x-, y- and z-direction)
         """
 
@@ -210,7 +210,7 @@ class Car:
                           + self.get_thrust_force()
                           + self.get_drag_force()
                           + self.get_lateral_pin_force() )
-        
+
         # Crash check
         if (np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE):
             self.is_chrashed = True
@@ -221,7 +221,7 @@ class Car:
         """
         Purpose: Calculate rolling resistance acing on the car
         Formula: F_roll = mu_roll * N,   N = normal force
-        Returns: 
+        Returns:
             f1_vec -- ndarray containing the components of the rolling resistance acting on the car (in x-, y- and z-direction)
         """
 
@@ -244,7 +244,7 @@ class Car:
         """
         Purpose: Calculate friction force acting on pin from rail
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
-        Returns: 
+        Returns:
             f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction)
         """
 
@@ -261,7 +261,7 @@ class Car:
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: F_tire = min(mu_tire * N, m * v^2 / r),  N = normal force
-        Returns: 
+        Returns:
             f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 
@@ -281,7 +281,7 @@ class Car:
     def get_magnet_force(self):
         """
         Purpose: Calculate force from lane acting on the car's magnet
-        Returns: 
+        Returns:
             m_vec -- ndarray containing the components of the magnetic force acting on the car (in x-, y- and z-direction)
         """
 
@@ -295,7 +295,7 @@ class Car:
         """
         Purpose: Calculate gravitational force acting on the car
         Formula: G = mg
-        Returns: 
+        Returns:
             g_vec -- ndarray containing the components of the gravitational force acting on the car (in x-, y- and z-direction)
         """
 
@@ -307,7 +307,7 @@ class Car:
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: sum(F_z) = 0 => N = - (G + m_vec)
-        Returns: 
+        Returns:
             n_vec -- ndarray containing the components of the normal force acting on the car (in x-, y- and z-direction)
         """
 
@@ -325,7 +325,7 @@ class Car:
         Formula: T = eta * U^2 / R,     eta = efficieny
                                         U   = track voltage
                                         R   = total resitance of the car's lane
-        Returns: 
+        Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
 
@@ -347,7 +347,7 @@ class Car:
         """
         Purpose: Calculate drag force acting on tires from track
         Formula: D = .5 * rho * A * C_d * v^2
-        Returns: 
+        Returns:
             d_vec -- ndarray containing the components of the drag force acting on the car (in x-, y- and z-direction)
         """
 
@@ -368,7 +368,7 @@ class Car:
         Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
                  sum(F_centrifugal) = ma = m * v^2 / r
                  => lateral pin force = m * v^2 / r - lateral friction
-        Returns: 
+        Returns:
             l_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 
