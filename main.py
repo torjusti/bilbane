@@ -1,8 +1,8 @@
-import arcade
 from model.car import Car
 from model import model
 from visualization import game
 import math
+from ai.controller import train
 
 
 def main():
@@ -25,8 +25,9 @@ def main():
 
     track.cars = cars
 
+    controller = train(track, cars[1])
+    cars[1].controller = controller
     game.start_game(track)
-
 
 if __name__ == '__main__':
     main()

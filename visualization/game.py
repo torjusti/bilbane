@@ -1,14 +1,14 @@
 import arcade
 import math
-from visualization.utils import create_arc_outline
 import numpy as np
+import random
+from visualization.utils import create_arc_outline
 from model.car import Car
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
-SPRITE_SCALING_CAR = 0.25
-
+SPRITE_SCALING_CAR = 0.2
 
 
 class SlotCarGame(arcade.Window):
@@ -20,7 +20,6 @@ class SlotCarGame(arcade.Window):
         self.car_sprites = arcade.SpriteList()
         self.track_bounds = self.track.get_track_bounds()
         arcade.set_background_color(arcade.color.WHITE)
-        
 
     def setup_track(self):
         self.track_element_list = arcade.ShapeElementList()
@@ -36,14 +35,15 @@ class SlotCarGame(arcade.Window):
             coord[2:4] = self.scale_length(coord[2]), self.scale_length(coord[3])
             shape = create_arc_outline.create_arc_outline(*coord[0:4],arcade.color.BLACK,*coord[4:6])
             self.track_element_list.append(shape)
-        
-    
-  
 
     def setup(self):
         self.setup_track()
-        for car in self.track.cars:
-            car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
+
+        sprites = random.sample(['ambulance', 'audi', 'black_viper', 'car', 'mini_truck',
+                                 'mini_van', 'police', 'taxi', 'truck'], len(self.track.cars))
+
+        for i, car in enumerate(self.track.cars):
+            car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png', SPRITE_SCALING_CAR)
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
 
