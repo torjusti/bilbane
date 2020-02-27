@@ -7,7 +7,7 @@ DEFAULT_YAW = -90
 class Rail:
     LANE_EDGE_DIST = .039
     LANE_LANE_DIST = .0765
-    RAIL_WIDTH = LANE_LANE_DIST + 2*LANE_EDGE_DIST
+    RAIL_WIDTH = LANE_LANE_DIST + 2 * LANE_EDGE_DIST
 
     RESISTANCE_PER_UNIT_LENGTH = .033
 
@@ -31,10 +31,10 @@ class StraightRail(Rail):
 
         self.length = length
         self.resistances = np.asarray([self.length, self.length]) * self.RESISTANCE_PER_UNIT_LENGTH
-    
+
     def get_length(self, lane):
         return self.length
-    
+
 
 class TurnRail(Rail):
     Left = 1
@@ -48,7 +48,7 @@ class TurnRail(Rail):
         self.angle = angle  # Number of radians rotated relative to global coordinate system by travelling along the entire rail
         self.direction = direction  # 1 for left turn, -1 for right turn
         self.resistances = np.asarray([self.get_lane_length(Rail.Lane1), self.get_lane_length(Rail.Lane2)]) * self.RESISTANCE_PER_UNIT_LENGTH
-    
+
     @property
     def length(self):
         return self.radius * self.angle
@@ -115,15 +115,15 @@ class Track:
                 circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
                 x = circle_x + rail.radius * math.cos(initial_angle + rail.direction * rail.angle)
                 y = circle_y + rail.radius * math.sin(initial_angle + rail.direction * rail.angle)
-                angle += rail.angle
+                angle += rail.angle * rail.direction
 
-                start_ang = initial_angle 
+                start_ang = initial_angle
                 end_ang = rail.angle + initial_angle
-                
+
                 if(rail.direction == TurnRail.Right):
                      start_ang += 2*math.pi-rail.angle
                      end_ang += 2*math.pi-rail.angle
-                
+
                 self.turn_track_coordinates.append([circle_x, circle_y, rail.radius, rail.radius,
                  start_ang*180/math.pi, end_ang*180/math.pi])
 
@@ -155,7 +155,6 @@ class Track:
         :param dist: distance moved in meter
         """
         pass
-
 
     def step(self, delta_time):
         for car in self.cars:

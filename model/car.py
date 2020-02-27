@@ -76,13 +76,13 @@ class Car:
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
         self.acc_vec = np.zeros(3)
-    
+
     def get_new_state(self, delta_time):
         """
         Purpose: Get new state of the car
         Args:
             delta_time -- time step in seconds
-        Returns: 
+        Returns:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_vel_vec -- ndarray containing new car velocity (u, v, w)
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
@@ -104,7 +104,7 @@ class Car:
         Purpose: Get new position of the car
         Args:
             delta_time -- time step in seconds
-        Returns: 
+        Returns:
             new_pos_vec -- ndarray containing new car position (x,y,z)
         """
 
@@ -119,7 +119,7 @@ class Car:
         Purpose: Get new velocity of the car
         Args:
             delta_time -- time step in seconds
-        Returns: 
+        Returns:
             new_vel_vec -- ndarray containing new car velocity (u, v, w)
         """
 
@@ -137,7 +137,7 @@ class Car:
         Args:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
-        Returns: 
+        Returns:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
@@ -166,7 +166,7 @@ class Car:
             pos_vec_COR = new_rail.get_rail_center()
             lane_radius = new_rail.get_lane_radius(self.lane)
             left_turn   = (new_rail.direction == model.TurnRail.Left)
-            
+
             pos_vec_rel    = new_pos_vec - pos_vec_COR # Vector from centre of rail to car
             pos_vec_up     = np.asarray([0, self.rail.direction * lane_radius, 0]) # Vector from centre of rail in positive y(local) coord
             dot_product    = np.dot(pos_vec_rel, pos_vec_up) # Dot product between the two
@@ -282,7 +282,7 @@ class Car:
         """
         Purpose: Calculate friction force acting on pin from rail
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
-        Returns: 
+        Returns:
             f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction)
         """
 
@@ -333,7 +333,7 @@ class Car:
         """
         Purpose: Calculate gravitational force acting on the car
         Formula: G = mg
-        Returns: 
+        Returns:
             g_vec -- ndarray containing the components of the gravitational force acting on the car (in x-, y- and z-direction)
         """
 
@@ -345,7 +345,7 @@ class Car:
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: sum(F_z) = 0 => N = - (G + m_vec)
-        Returns: 
+        Returns:
             n_vec -- ndarray containing the components of the normal force acting on the car (in x-, y- and z-direction)
         """
 
@@ -361,7 +361,7 @@ class Car:
         """
         Purpose: Calculate thrust force acting on the car's tires from track, due to forced rotation of the tires (by the car's motor)
         Formula: T = C*P/v
-        Returns: 
+        Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
 
@@ -374,7 +374,7 @@ class Car:
         """
         Purpose: Calculate drag force acting on tires from track
         Formula: D = .5 * rho * A * C_d * v^2
-        Returns: 
+        Returns:
             d_vec -- ndarray containing the components of the drag force acting on the car (in x-, y- and z-direction)
         """
 
@@ -395,7 +395,7 @@ class Car:
         Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
                  sum(F_centrifugal) = ma = m * v^2 / r
                  => lateral pin force = m * v^2 / r - lateral friction
-        Returns: 
+        Returns:
             l_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 

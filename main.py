@@ -1,19 +1,26 @@
-import arcade
 from model.car import Car
 from model import model
+from model import standard_tracks as st
 from visualization import game
-import math
 
 
 def main():
+
     rails = [
-        model.StraightRail(300),
-        model.TurnRail(200, math.pi / 2, model.TurnRail.Left),
-        model.TurnRail(100, math.pi, model.TurnRail.Left),
-        model.StraightRail(300),
-        model.TurnRail(100, math.pi, model.TurnRail.Right),
-        model.StraightRail(200),
-        model.TurnRail(100, math.pi * 3/2, model.TurnRail.Left),
+        st.Straight(),
+        st.Straight(),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Straight("short"),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Straight(),
+        st.Straight(),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Straight("short"),
+        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Curve(1, 45, direction=st.Curve.Left),
     ]
 
     track = model.Track(rails, None)
