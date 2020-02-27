@@ -140,14 +140,14 @@ class Track:
                     crash_angle = rail.global_angle
                     car.x += car.speed * delta_time * math.cos(crash_angle)
                     car.y += car.speed * delta_time * math.sin(crash_angle)
-                    car.yaw += 2 * car.speed 
+                    car.yaw += 2 * car.speed
                 elif isinstance(rail, TurnRail):
-                    crash_angle = ((car.rail_progress - 1) * rail.global_angle + rail.global_angle) % 2 * math.pi 
-                         
-                    car.x += rail.direction * car.speed * delta_time * math.cos(crash_angle)
-                    car.y += rail.direction * car.speed * delta_time * math.sin(crash_angle)
+                    crash_angle = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+
+                    car.x += car.speed * delta_time * math.cos(crash_angle)
+                    car.y += car.speed * delta_time * math.sin(crash_angle)
                     car.yaw += 2 * rail.direction * car.speed
-                        
+
             else:
                 car.rail_progress += delta_time * car.speed / rail.get_length(car.lane)
                 car.rail_progress = min(car.rail_progress, 1)
