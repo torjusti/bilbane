@@ -9,7 +9,7 @@ import os
 
 DELTA_TIME = 1 / 60
 
-def get_state(track, car):
+def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
     as well as information about the following two rails on the track. """
     rail_information = [car.rail_progress]
@@ -42,7 +42,7 @@ class SlotCarEnv:
     @property
     def state(self):
         """ Returns a vector describing the position and velocity of the controlled car. """
-        return get_state(self.track, self.car)
+        return get_state(self.car)
 
     def step(self, action):
         """ Get an action from the agent for one time-step of the simulation. """
@@ -51,7 +51,7 @@ class SlotCarEnv:
 
         reward = np.linalg.norm(self.car.vel_vec)
 
-        return self.state, reward, self.car.is_chrashed
+        return self.state, reward, self.car.is_crashed
 
 
 class DDPGController:
@@ -63,7 +63,7 @@ class DDPGController:
 
     def step(self):
         """ Get an action for one time-step of the simulation. """
-        return self.agent.get_action(get_state(self.track, self.car)).item()
+        return self.agent.get_action(get_state(self.car)).item()
 
 
 def train(track, car):
@@ -76,9 +76,11 @@ def train(track, car):
 
     agent = Agent(env.state.shape[0], 1)
 
+    """
     if os.path.exists('actor.pth') and os.path.exists('critic.pth'):
         agent.load_model('actor.pth', 'critic.pth')
         return DDPGController(agent, track, car)
+    """
 
     replay_buffer = ReplayBuffer()
 
