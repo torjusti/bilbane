@@ -17,6 +17,9 @@ class Car:
     # Boolean to check if car has crashed
     is_crashed = None
 
+    # Time since the car crashed
+    crash_time = 0
+
     # Position of the car in the global coordinate system.
     pos_vec = None
     vel_vec = None
@@ -163,7 +166,7 @@ class Car:
         Args:
             new_pos_vec -- ndarray containing new car position (x,y,z)
             new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
-        Returns: 
+        Returns:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, phi)
         """
 
@@ -182,7 +185,7 @@ class Car:
                 phi = relative_angle # Angle between X(global) and x(local) axis
             else:
                 phi = 2*np.pi - relative_angle # Angle between X(global) and x(local) axis
-            
+
             if left_turn:
                 phi = phi + np.pi # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
 
@@ -190,7 +193,7 @@ class Car:
                 phi = phi - 2*np.pi
             if phi < 0:
                 phi = phi + 2*np.pi
-        
+
         # Else we are on a straight
         else:
             phi = new_rail.global_angle
@@ -207,7 +210,7 @@ class Car:
     def get_total_force(self):
         """
         Purpose: Calculate total force on car, and check if it exceeds given force limit
-        Returns: 
+        Returns:
             total_force_vec -- ndarray containing force acting on the car (in x-, y- and z-direction)
         """
 
@@ -235,7 +238,7 @@ class Car:
               "Drag force       :", self.get_drag_force(), "\n",
               "Lateral pin force:", self.get_lateral_pin_force(), "\n",
               "Total force:", total_force_vec, "\n")
-        
+
         # Crash check
         if np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
@@ -246,7 +249,7 @@ class Car:
         """
         Purpose: Calculate rolling resistance acing on the car
         Formula: F_roll = mu_roll * N,   N = normal force
-        Returns: 
+        Returns:
             f1_vec -- ndarray containing the components of the rolling resistance acting on the car (in x-, y- and z-direction)
         """
 
@@ -320,7 +323,7 @@ class Car:
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: F_tire = min(mu_tire * N, m * v^2 / r),  N = normal force
-        Returns: 
+        Returns:
             f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 
