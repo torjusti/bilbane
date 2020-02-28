@@ -1,3 +1,4 @@
+import numpy as np
 from model.car import Car
 from model import model
 from model import standard_tracks as st
@@ -7,10 +8,14 @@ from ai.controller import train
 
 def main():
     rails = [
+        st.Straight(),
+        st.Straight(),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
+        st.Straight(),
+        st.Straight(),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),

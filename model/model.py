@@ -169,9 +169,11 @@ class Track:
                 car.phi = -90
                 car.rail = self.rails[0]
                 car.controller_input = 0
+                car.rail_progress = 0
                 car.is_crashed = False
-                car.vel_vec = np.zeros_like(car.vel_vec.shape)
+                car.vel_vec = np.zeros([0, 0, 0])
                 car.crash_time = 0
+                car.controller_input = 0
                 continue
 
             rail = car.rail

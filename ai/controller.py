@@ -89,7 +89,7 @@ def train(track, car):
         episode_reward = 0
         noise.reset()
 
-        for step in range(1000):
+        for step in range(2000):
             action = (agent.get_action(state) + noise()).clip(0, 1)
 
             next_state, reward, done = env.step(action.item())

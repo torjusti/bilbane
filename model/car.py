@@ -145,12 +145,8 @@ class Car:
 
         new_acc_vec = self.get_total_force() / self.mass
 
-        print("Acceleration:", new_acc_vec)
-
         old_vel_vec = np.asarray([np.linalg.norm(self.vel_vec), 0, 0])
         new_vel_vec = old_vel_vec + new_acc_vec*delta_time
-
-        print("Velocity:", new_vel_vec)
 
         new_vel_vec[0] = max(0, new_vel_vec[0])
 
@@ -242,19 +238,6 @@ class Car:
                           + self.get_drag_force()
                           + self.get_lateral_pin_force() )
 
-        print("Rolling resitance:", self.get_rolling_resistance(), "\n",
-              "Motor brake force:", self.get_motor_brake_force(), "\n",
-              "Axle friction    :", self.get_axle_friction(), "\n",
-              "Pin friction     :", self.get_pin_friction(), "\n",
-              "Lateral friction :", self.get_lateral_friction(), "\n",
-              "Magnet force     :", self.get_magnet_force(), "\n",
-              "Gravity force    :", self.get_gravity_force(), "\n",
-              "Normal force     :", self.get_normal_force(), "\n",
-              "Thrust force     :", self.get_thrust_force(), "\n",
-              "Drag force       :", self.get_drag_force(), "\n",
-              "Lateral pin force:", self.get_lateral_pin_force(), "\n",
-              "Total force:", total_force_vec, "\n")
-
         # Crash check
         if np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
@@ -298,8 +281,6 @@ class Car:
 
         if np.linalg.norm(self.vel_vec) < 1e-3:
             mbrake_vec = np.zeros_like(mbrake_vec)
-
-        print(mbrake_vec)
 
         return mbrake_vec
 
