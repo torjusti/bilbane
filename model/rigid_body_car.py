@@ -191,32 +191,6 @@ class RigidBodyCar(PointMassCar):
 
         return m_vec
 
-    def get_thrust_force(self):
-        """
-        Purpose: Calculate thrust force acting on the car's tires from track, due to forced rotation of the tires (by the car's motor)
-        Formula: T = eta * U^2 / R,     eta = efficieny
-                                        U   = track voltage
-                                        R   = total resitance of the car's lane
-        Returns:
-            t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
-        """
-
-        # TODO: Make valid for skidding
-
-        U = self.controller_input * self.MAX_VOLTAGE
-
-        if (self.lane == model.Rail.Lane1):
-            R = self.track.resistances[0]
-        elif (self.lane == model.Rail.Lane2):
-            R = self.track.resistances[1]
-        else:
-            raise ValueError("Invalid lane value")
-
-        T = self.motor_eta * (U ** 2) / R
-        t_vec = np.asarray([T, 0, 0])
-
-        return t_vec
-
     def get_drag_force(self):
         """
         Purpose: Calculate drag force acting on tires from track
@@ -284,7 +258,17 @@ class RigidBodyCar(PointMassCar):
     # Calculate momenta
 
     def get_pin_torque(self):
-        pass
+        return np.cross(self.rho_pin, (self.get_lateral_pin_force() + self.get_pin_friction()))
+
+    def get_wheel_torque(self):
+        rho_wheel = (rho_front_axel + rho_rear_axel) / 2
+        return np.cross(rho_wheel, self.get_lateral_friction())
+
+    def get_total_torque(self):
+        return self.get_pin_torque() + self.get_wheel_torque()
+
+    def get_angular_acceleration(self):
+        return np.dot(np.linalg.inv(self.inertia), self.get_total_torque())
 
     ####################################################################################################################
     # Helper functions
