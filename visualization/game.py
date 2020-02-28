@@ -2,8 +2,7 @@ import arcade
 import math
 from visualization.utils import create_arc_outline
 import numpy as np
-
-from model.model import Car
+from model.car import Car
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -78,21 +77,20 @@ class SlotCarGame(arcade.Window):
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
             car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
-            car_sprite.angle = car.yaw
+            car_sprite.angle = car.phi
 
     def on_key_press(self, symbol: int, modifiers: int):
         """
         Numbers from 1-9 corresponds to lowest speed setting, to max speed setting. Every other key is zero speed.
         """
         if 49 <= symbol <= 57:
-            speed = symbol - 47
+            speed = symbol - 48
         else:
             speed = 0
 
         for car in self.track.cars:
             if car.key_control:
-                car.speed = speed / 9 * Car.MAX_SPEED
-
+                car.controller_input = speed / 9
 
 def start_game(track):
     game = SlotCarGame(SCREEN_WIDTH, SCREEN_HEIGHT, track)
