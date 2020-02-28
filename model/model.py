@@ -171,7 +171,7 @@ class Track:
 
             rail = car.rail
 
-            car.rail_progress += np.linalg.norm(vel) / rail.length
+            car.rail_progress += np.linalg.norm(vel) * delta_time / rail.length
 
             car.rail_progress = min(car.rail_progress, 1)
 

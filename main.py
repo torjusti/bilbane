@@ -7,20 +7,14 @@ from visualization import game
 def main():
 
     rails = [
-        st.Straight(),
-        st.Straight(),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Straight("short"),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Straight(),
-        st.Straight(),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Straight("short"),
-        st.Curve(1, 45, direction=st.Curve.Left),
-        st.Curve(1, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
     ]
 
     track = model.Track(rails, None)
