@@ -70,7 +70,7 @@ class Critic(torch.nn.Module):
         return self.l3(value)
 
 
-class Agent(object):
+class DDPGAgent(object):
     def __init__(self, state_dim, action_dim, gamma=0.99, tau=0.001,
                  actor_lr=1e-4, critic_lr=1e-3, weight_decay=1e-2):
         self.actor = Actor(state_dim, action_dim).to(device)
