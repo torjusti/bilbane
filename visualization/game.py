@@ -8,7 +8,8 @@ from model.car import Car
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
-SPRITE_SCALING_CAR = 0.2
+SPRITE_SCALING_CAR = 0.25
+DEFAULT_YAW = -90
 
 class SlotCarGame(arcade.Window):
     space_pressed = False
@@ -91,7 +92,7 @@ class SlotCarGame(arcade.Window):
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
             car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
-            car_sprite.angle = car.phi
+            car_sprite.angle = car.phi * 180 / math.pi + DEFAULT_YAW
 
             if car.is_crashed:
                 if i not in self.cars_crashed:

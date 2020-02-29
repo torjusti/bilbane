@@ -37,8 +37,7 @@ class Car:
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
 
-    # TODO: Use returned angle.
-    phi = -90
+    phi = 0
 
     # Track section on which the car is situated.
     rail = None
@@ -46,9 +45,11 @@ class Car:
     # How far along the car is on the current rail.
     rail_progress = 0
 
-    # Number of laps completed by this car. Used for computing distance
-    # travelled when giving reward to the car in the AI subsystem.
+    # Number of laps completed by this car.
     laps_completed = 0
+
+    # Timer used to stop crash animation.
+    crash_time = 0
 
     # Lane and track the car is on
     lane = None
@@ -85,17 +86,20 @@ class Car:
 
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
-        self.acc_vec = np.zeros(3)
 
     def reset(self):
-        self.x = 0
-        self.y = 0
-        self.yaw = -90
-        self.rail = self.track.rails[0]
+        """ Reset the car state after a crash. """
         self.is_crashed = False
+        self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
+        self.rail = self.track.rails[0]
         self.controller_input = 0
         self.laps_completed = 0
+        self.rail_progress = 0
+        self.crash_time = 0
+        self.phi = 0
+        self.x = 0
+        self.y = 0
 
     def get_new_state(self, delta_time):
         """

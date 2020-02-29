@@ -130,9 +130,11 @@ class Agent(object):
         self.soft_update(self.actor, self.actor_target)
 
     def save_model(self, actor_path, critic_path):
+        """ Save the actor and critic models to file. """
         torch.save(self.actor.state_dict(), actor_path)
         torch.save(self.critic.state_dict(), critic_path)
 
     def load_model(self, actor_path, critic_path):
+        """ Load the actor and critic models from file. """
         self.actor.load_state_dict(torch.load(actor_path))
         self.critic.load_state_dict(torch.load(critic_path))

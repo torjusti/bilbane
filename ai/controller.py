@@ -6,17 +6,22 @@ from model.car import Car
 from model import model
 import os
 
-
 DELTA_TIME = 1 / 60
+RAIL_LOOKAHEAD = 5
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
     as well as information about the following two rails on the track. """
+    return np.concatenate((np.array([car.rail_progress, car.track.rails.index(car.rail)]), car.vel_vec))
+
+    # TODO: Check local and global information.
+    # TODO: Check negative reinforcement.
+
     rail_information = [car.rail_progress]
 
     rail = car.rail
 
-    for i in range(3):
+    for i in range(1 + RAIL_LOOKAHEAD):
         rail_information.extend([
             rail.radius if isinstance(rail, model.TurnRail) else 0,
             rail.direction if isinstance(rail, model.TurnRail) else 0,
@@ -49,7 +54,11 @@ class SlotCarEnv:
         self.car.controller_input = action
         self.track.step(DELTA_TIME)
 
-        reward = np.linalg.norm(self.car.vel_vec)
+        if self.car.is_crashed:
+            self.car.reset()
+            reward = -5000
+        else:
+            reward = np.linalg.norm(self.car.vel_vec)
 
         return self.state, reward, self.car.is_crashed
 
@@ -70,17 +79,15 @@ def train(track, car):
     env = SlotCarEnv(track, car)
 
     batch_size = 64
-    checkpoint = 25
+    checkpoint = 10
 
     noise = OrnsteinUhlenbeckNoise(1)
 
     agent = Agent(env.state.shape[0], 1)
 
-    """
     if os.path.exists('actor.pth') and os.path.exists('critic.pth'):
         agent.load_model('actor.pth', 'critic.pth')
         return DDPGController(agent, track, car)
-    """
 
     replay_buffer = ReplayBuffer()
 
@@ -89,7 +96,7 @@ def train(track, car):
         episode_reward = 0
         noise.reset()
 
-        for step in range(2000):
+        for _ in range(1000):
             action = (agent.get_action(state) + noise()).clip(0, 1)
 
             next_state, reward, done = env.step(action.item())
@@ -113,7 +120,7 @@ def train(track, car):
 
             state, done = env.reset(), False
 
-            for step in range(1000):
+            for _ in range(1000):
                 action = agent.get_action(state).item()
                 next_state, reward, done = env.step(action)
                 total_reward += reward

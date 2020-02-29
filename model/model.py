@@ -1,8 +1,6 @@
 import math
 import numpy as np
 
-DEFAULT_YAW = -90
-
 
 class Rail:
     LANE_EDGE_DIST = .039
@@ -164,16 +162,7 @@ class Track:
             pos, vel, angle = car.get_new_state(delta_time)
 
             if car.is_crashed and car.crash_time > 1:
-                car.x = 0
-                car.y = 0
-                car.phi = -90
-                car.rail = self.rails[0]
-                car.controller_input = 0
-                car.rail_progress = 0
-                car.is_crashed = False
-                car.vel_vec = np.zeros([0, 0, 0])
-                car.crash_time = 0
-                car.controller_input = 0
+                car.reset()
                 continue
 
             rail = car.rail
@@ -208,12 +197,10 @@ class Track:
                     car.x = circle_x + rail.radius * math.cos(angle)
                     car.y = circle_y + rail.radius * math.sin(angle)
 
-                    phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+                    car.phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                    car.x += math.cos(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                    car.y += math.sin(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-
-                    car.phi = phi * 180 / math.pi + DEFAULT_YAW
+                    car.x += math.cos(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                    car.y += math.sin(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
                 car.pos_vec = pos
                 car.vel_vec = vel
