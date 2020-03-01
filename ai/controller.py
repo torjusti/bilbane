@@ -62,9 +62,12 @@ class SlotCarEnv:
             reward = -1000
             self.car.reset()
         else:
-            reward = np.linalg.norm(self.car.vel_vec)
+            reward = np.linalg.norm(self.car.vel_vec).item()
 
-        return self.state, reward, self.car.is_crashed
+        # We never return done, opting to instead put the car back on the track.
+        # This has the benefit of adding a few extra negative reinforcement
+        # samples, since the same noise generator is used after restarting.
+        return self.state, reward, False
 
 
 class AIController:
