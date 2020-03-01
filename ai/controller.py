@@ -11,7 +11,9 @@ LOAD_MODEL = True
 DELTA_TIME = 1 / 60
 LOCAL_STATE = False
 RAIL_LOOKAHEAD = 5
-AGENT_TYPE = 'ddpg'
+AGENT_TYPE = 'td3'
+BATCH_SIZE = 128
+CHECKPOINT = 10
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
@@ -80,9 +82,6 @@ class AIController:
 def train(track, car):
     env = SlotCarEnv(track, car)
 
-    batch_size = 128
-    checkpoint = 10
-
     noise = OrnsteinUhlenbeckNoise(1, dt=1e-2)
 
     if AGENT_TYPE == 'ddpg':
@@ -112,15 +111,15 @@ def train(track, car):
 
             episode_reward += reward
 
-            if len(replay_buffer) >= batch_size:
-                agent.update(replay_buffer.sample(batch_size))
+            if len(replay_buffer) >= BATCH_SIZE:
+                agent.update(replay_buffer.sample(BATCH_SIZE))
 
             if done:
                 break
 
         print(f'Episode {episode}: {episode_reward}, laps: {car.laps_completed}')
 
-        if episode % checkpoint == checkpoint - 1:
+        if episode % CHECKPOINT == CHECKPOINT - 1:
             total_reward = 0
 
             state, done = env.reset(), False

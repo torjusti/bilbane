@@ -3,19 +3,17 @@ import numpy as np
 import torch
 import copy
 
-from ai.ddpg_agent import Actor, Critic, DDPGAgent
+from ai.actor_critic_agent import ActorCriticAgent
+from ai.models import Actor, Critic
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class TD3Agent(DDPGAgent):
+class TD3Agent(ActorCriticAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, tau=0.002, actor_lr=1e-3, critic_lr=1e-3):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
-
-        # Number of iterations the agent has been trained for.
-        self.iterations = 0
 
         self.actor_target = copy.deepcopy(self.actor)
         self.Q1_target = copy.deepcopy(self.Q1)
@@ -28,6 +26,9 @@ class TD3Agent(DDPGAgent):
         self.gamma = gamma
         self.tau = tau
 
+        # Number of steps the agent has been trained for.
+        self.iterations = 0
+
     def update(self, batch):
         """ Train the network on a given minibatch from the replay buffer. """
         state, action, next_state, reward, done = batch
@@ -35,8 +36,8 @@ class TD3Agent(DDPGAgent):
         with torch.no_grad():
             # Select action according to policy and add clipped noise.
             noise = (
-                torch.randn_like(action) * 0.1
-            ).clamp(-0.25, 0.25)
+                torch.randn_like(action) * 1e-2
+            ).clamp(-5e-2, 5e-2)
 
             next_action = (
                 self.actor_target(next_state) + noise
