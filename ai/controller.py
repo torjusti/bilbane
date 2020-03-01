@@ -1,21 +1,23 @@
 import numpy as np
 from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
-from ai.agent import Agent
+from ai.ddpg_agent import DDPGAgent
+from ai.td3_agent import TD3Agent
 from model.car import Car
 from model import model
 import os
 
+LOAD_MODEL = True
 DELTA_TIME = 1 / 60
+LOCAL_STATE = False
 RAIL_LOOKAHEAD = 5
+AGENT_TYPE = 'ddpg'
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
     as well as information about the following two rails on the track. """
-    return np.concatenate((np.array([car.rail_progress, car.track.rails.index(car.rail)]), car.vel_vec))
-
-    # TODO: Check local and global information.
-    # TODO: Check negative reinforcement.
+    if not LOCAL_STATE:
+        return np.concatenate((np.array([car.rail_progress, car.track.rails.index(car.rail)]), car.vel_vec))
 
     rail_information = [car.rail_progress]
 
@@ -55,15 +57,15 @@ class SlotCarEnv:
         self.track.step(DELTA_TIME)
 
         if self.car.is_crashed:
+            reward = -1000
             self.car.reset()
-            reward = -5000
         else:
             reward = np.linalg.norm(self.car.vel_vec)
 
         return self.state, reward, self.car.is_crashed
 
 
-class DDPGController:
+class AIController:
     def __init__(self, agent, track, car):
         """ Used for controlling `car` on `track` using a DDPG agent. """
         self.agent = agent
@@ -78,20 +80,23 @@ class DDPGController:
 def train(track, car):
     env = SlotCarEnv(track, car)
 
-    batch_size = 64
+    batch_size = 128
     checkpoint = 10
 
-    noise = OrnsteinUhlenbeckNoise(1)
+    noise = OrnsteinUhlenbeckNoise(1, dt=1e-2)
 
-    agent = Agent(env.state.shape[0], 1)
+    if AGENT_TYPE == 'ddpg':
+        agent = DDPGAgent(env.state.shape[0], 1)
+    elif AGENT_TYPE == 'td3':
+        agent = TD3Agent(env.state.shape[0], 1)
 
-    if os.path.exists('actor.pth') and os.path.exists('critic.pth'):
-        agent.load_model('actor.pth', 'critic.pth')
-        return DDPGController(agent, track, car)
+    if os.path.exists('actor.pth') and LOAD_MODEL:
+        agent.load_model('actor.pth')
+        return AIController(agent, track, car)
 
     replay_buffer = ReplayBuffer()
 
-    for episode in range(10000):
+    for episode in range(2000):
         state, done = env.reset(), False
         episode_reward = 0
         noise.reset()
@@ -131,9 +136,9 @@ def train(track, car):
 
             print(f'Reward on test episode: {total_reward}')
 
-            agent.save_model(f'actor-{episode}.pth', f'critic-{episode}.pth')
+            agent.save_model(f'actor-{episode}.pth')
 
     # Reset car position to leave model untouched after training.
     car.reset()
 
-    return DDPGController(agent, track, car)
+    return AIController(agent, track, car)
