@@ -77,8 +77,14 @@ class SlotCarGame(arcade.Window):
     def draw_time(self):
         arcade.draw_text(self.seconds_to_string(self.global_time), 0, 0, arcade.color.BLACK, 12)
         color = {0: arcade.color.BLUE, 1: arcade.color.RED}
-        for i, car in enumerate(self.track.cars):
-            arcade.draw_text(self.seconds_to_string(self.round_timer[car]), 0, 12 * (i + 1), color[i], 12)
+
+        for i, car in enumerate(reversed(self.track.cars)):
+            times = self.round_times[car]
+            if not times:
+                continue
+            best_time = min(times)
+            s = f"{i + 1} : {self.seconds_to_string(best_time)}"
+            arcade.draw_text(s, 0, 12 * (i + 1), color[i], 12)
 
     @staticmethod
     def seconds_to_string(seconds):
