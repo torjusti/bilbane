@@ -1,7 +1,7 @@
 import arcade
 import numpy as np
 
-from model.model import Car
+from model.car import Car
 from visualization.utils import create_arc_outline
 
 SCREEN_WIDTH = 800
@@ -15,9 +15,25 @@ class SlotCarGame(arcade.Window):
 
     def __init__(self, width, height, track):
         super().__init__(width, height)
+
         self.track = track
         self.car_sprites = arcade.SpriteList()
         self.track_bounds = self.track.get_track_bounds()
+        self.explosions_list = None
+
+        self.explosion_texture_list = []
+        self.cars_crashed = []
+
+        columns = 8
+        count = 51
+        sprite_width = 256
+        sprite_height = 256
+        file_name = 'visualization/images/spritesheet.png'
+
+        # Load the explosions from a sprite sheet
+        self.explosion_texture_list = arcade.load_spritesheet(file_name, sprite_width,
+                                                              sprite_height, columns, count)
+
         arcade.set_background_color(arcade.color.WHITE)
 
         self.round_timer = {}  # Car to current round time
@@ -41,6 +57,7 @@ class SlotCarGame(arcade.Window):
 
     def setup(self):
         self.setup_track()
+        self.explosions_list = arcade.SpriteList()
         for car in self.track.cars:
             car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
@@ -49,14 +66,12 @@ class SlotCarGame(arcade.Window):
             self.round_times[car] = []
 
     def transform(self, x, y):
-        """
-        Take car and track coordinates, and calculate to pixel coordinates.
-        """
+        """ Take car and track coordinates, and calculate to pixel coordinates. """
         coordinate = np.array([x, y])
         difference = (self.track_bounds[1] - self.track_bounds[0])
         max_diff = difference.max()
         normalized = (coordinate - self.track_bounds[0]) / max_diff
-        # TODO calculate magic number 0.1 in a better way.
+        # TODO: Calculate magic number 0.1 in a better way.
         return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def scale_length(self, length):
@@ -71,6 +86,7 @@ class SlotCarGame(arcade.Window):
         self.track_element_list.draw()
         for car in self.car_sprites:
             car.draw()
+        self.explosions_list.draw()
 
         self.draw_time()
 
@@ -100,7 +116,24 @@ class SlotCarGame(arcade.Window):
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
             car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
-            car_sprite.angle = car.yaw
+            car_sprite.angle = car.phi
+
+            if car.is_crashed:
+                if i not in self.cars_crashed:
+                    self.cars_crashed.append(i)
+                    explosion = Explosion(self.explosion_texture_list)
+                    explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
+                    explosion.update()
+                    self.explosions_list.append(explosion)
+                else:
+                    self.explosions_list.update()
+                    for explosion in self.explosions_list:
+                        explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
+            else:
+                self.explosions_list.update()
+                if i in self.cars_crashed:
+                    self.cars_crashed.remove(i)
+
             self.round_time_step(car, delta_time)
 
     def round_time_step(self, car: Car, delta_time):
@@ -117,14 +150,35 @@ class SlotCarGame(arcade.Window):
         Numbers from 1-9 corresponds to lowest speed setting, to max speed setting. Every other key is zero speed.
         """
         if 49 <= symbol <= 57:
-            speed = symbol - 47
+            speed = symbol - 48
         else:
             speed = 0
 
         for car in self.track.cars:
             if car.key_control:
-                car.speed = speed / 9 * Car.MAX_SPEED
+                if not car.is_crashed:
+                    car.controller_input = speed / 9
 
+
+class Explosion(arcade.Sprite):
+    """ This class creates an explosion animation """
+
+    def __init__(self, texture_list): #fix an explosion to a car
+        super().__init__()
+
+        # Start at the first frame
+        self.current_texture = 0
+        self.textures = texture_list
+
+
+    def update(self):
+        # Update to the next frame of the animation. If we are at the end
+        # of our frames, then delete this sprite.
+        self.current_texture += 1
+        if self.current_texture < len(self.textures):
+            self.set_texture(self.current_texture)
+        else:
+            self.remove_from_sprite_lists()
 
 def start_game(track):
     game = SlotCarGame(SCREEN_WIDTH, SCREEN_HEIGHT, track)

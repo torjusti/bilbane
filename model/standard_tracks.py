@@ -16,9 +16,7 @@ class Straight(model.StraightRail):
 
     def __init__(self, fraction=1):
         if type(fraction) is str:
-            print(fraction)
             fraction = self.names[fraction]
-            print(fraction)
         super().__init__(self.length * fraction)
 
 
