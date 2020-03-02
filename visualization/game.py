@@ -3,6 +3,8 @@ import math
 from visualization.utils import create_arc_outline
 import numpy as np
 from model.car import Car
+from external_input import externalInput
+
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -23,6 +25,8 @@ class SlotCarGame(arcade.Window):
 
         self.explosion_texture_list = []
         self.cars_crashed = []
+
+        self.input = externalInput.ExternalInput('COM3','0')
 
         columns = 8
         count = 51
@@ -84,12 +88,14 @@ class SlotCarGame(arcade.Window):
 
     def update(self, delta_time):
         self.track.step(delta_time)
+        self.input.read()
 
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
             car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
             car_sprite.angle = car.phi
-
+            if car.key_control:
+                car.controller_input = self.input.value
             if car.is_crashed:
                 if i not in self.cars_crashed:
                     self.cars_crashed.append(i)
