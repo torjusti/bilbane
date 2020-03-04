@@ -87,27 +87,37 @@ class SlotCarGame(arcade.Window):
         for car in self.car_sprites:
             car.draw()
         self.explosions_list.draw()
-
         self.draw_time()
 
     def draw_time(self):
-        arcade.draw_text(self.seconds_to_string(self.global_time), 0, 0, arcade.color.BLACK, 12)
-        color = {0: arcade.color.BLUE, 1: arcade.color.RED}
-
+        color = {-1: arcade.color.BLUE, 1: arcade.color.RED}
+        best_times = {}
         for i, car in enumerate(reversed(self.track.cars)):
+            s = f"{self.seconds_to_string(self.round_timer[car], decimals=.5)}"
+            arcade.draw_text(s, 0, 12 * i, color[car.lane], 12)
             times = self.round_times[car]
-            if not times:
-                continue
-            best_time = min(times)
-            s = f"{i + 1} : {self.seconds_to_string(best_time)}"
-            arcade.draw_text(s, 0, 12 * (i + 1), color[i], 12)
+            if times:
+                best_times[car] = min(times)
+
+        if best_times.keys():
+            sort = sorted(best_times.items(), key=lambda e: e[1])
+            for i, (car, time) in enumerate(sort):
+                s = f"{self.seconds_to_string(best_times[car], decimals=3)}"
+                arcade.draw_text(s, 0, self.height - 12 * (i + 2), color[car.lane], 12)
 
     @staticmethod
-    def seconds_to_string(seconds):
+    def seconds_to_string(seconds, decimals=1.0):
         minutes = int(seconds) // 60
         sec = int(seconds) % 60
-        milli = int((seconds - sec) * 1000)
-        return f"{minutes:02d}:{sec:02d}:{milli:03d}"
+        if decimals == 0.5:
+            # Round down to half second
+            milli = int((seconds - (sec + minutes * 60)) * 1000)
+            decimals = 1
+            milli = 0 if milli < 500 else 5
+        else:
+            milli = int((seconds - (sec + minutes * 60))*10 ** decimals)
+
+        return f"{minutes:02d}:{sec:02d}:{milli:0{int(decimals)}d}"
 
     def update(self, delta_time):
         self.track.step(delta_time)
@@ -140,7 +150,9 @@ class SlotCarGame(arcade.Window):
         self.round_timer[car] += delta_time
 
         if car.rail_progress == 0 and car.rail == self.track.rails[0]:
-            # Lap completed
+            # Lap completed, only if speed is nonzero.
+            if np.linalg.norm(car.vel_vec) == 0:
+                return
             new_time = self.round_timer[car]
             self.round_times[car].append(new_time)
             self.round_timer[car] = 0  # Reset clock
