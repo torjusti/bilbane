@@ -87,20 +87,20 @@ class SlotCarGame(arcade.Window):
 
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
-            car_sprite.center_x, car_sprite.center_y = self.transform(car.x, car.y)
-            car_sprite.angle = car.phi
+            car_sprite.center_x, car_sprite.center_y = self.transform(car.pos_vec[0], car.pos_vec[1])
+            car_sprite.angle = car.phi * 180 / np.pi
 
             if car.is_crashed:
                 if i not in self.cars_crashed:
                     self.cars_crashed.append(i)
                     explosion = Explosion(self.explosion_texture_list)
-                    explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
+                    explosion.center_x, explosion.center_y = self.transform(car.pos_vec[0], car.pos_vec[1])
                     explosion.update()
                     self.explosions_list.append(explosion)
                 else:
                     self.explosions_list.update()
                     for explosion in self.explosions_list:
-                        explosion.center_x, explosion.center_y = self.transform(car.x, car.y)
+                        explosion.center_x, explosion.center_y = self.transform(car.pos_vec[0], car.pos_vec[1])
             else:
                 self.explosions_list.update()
                 if i in self.cars_crashed:

@@ -161,9 +161,9 @@ class Track:
             pos, vel, physics_phi = car.get_new_state(delta_time)
 
             if car.is_crashed and car.crash_time > 1:
-                car.x = 0
-                car.y = 0
-                car.phi = -90
+                car.pos_vec[0] = 0
+                car.pos_vec[1] = 0
+                car.phi = 0
                 car.rail = self.rails[0]
                 car.is_crashed = False
                 car.vel_vec = np.zeros_like(car.vel_vec.shape)
@@ -176,43 +176,44 @@ class Track:
 
                 if isinstance(rail, StraightRail):
                     crash_angle = rail.global_angle
-                    car.x += np.linalg.norm(car.vel_vec) * delta_time * math.cos(crash_angle)
-                    car.y += np.linalg.norm(car.vel_vec) * delta_time * math.sin(crash_angle)
-                    car.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
+                    car.pos_vec[0] += np.linalg.norm(car.vel_vec) * delta_time * math.cos(crash_angle)
+                    car.pos_vec[1] += np.linalg.norm(car.vel_vec) * delta_time * math.sin(crash_angle)
+                    #car.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
                 elif isinstance(rail, TurnRail):
                     crash_angle = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                    car.x += np.linalg.norm(car.vel_vec) * delta_time * math.cos(crash_angle)
-                    car.y += np.linalg.norm(car.vel_vec) * delta_time * math.sin(crash_angle)
-                    car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
+                    car.pos_vec[0] += np.linalg.norm(car.vel_vec) * delta_time * math.cos(crash_angle)
+                    car.pos_vec[1] += np.linalg.norm(car.vel_vec) * delta_time * math.sin(crash_angle)
+                    #car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
 
             else:
                 car.rail_progress += np.linalg.norm(vel) * delta_time / rail.get_length(car.lane)
                 car.rail_progress = min(car.rail_progress, 1)
                 if isinstance(rail, StraightRail):
-                    car.x = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
+                    car.pos_vec[0] = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
                     car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
 
-                    car.x += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                    car.pos_vec[0] += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
                     car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
                 elif isinstance(rail, TurnRail):
                     circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
                     angle = initial_angle + rail.angle * car.rail_progress * rail.direction
 
-                    car.x = circle_x + rail.radius * math.cos(angle)
-                    car.y = circle_y + rail.radius * math.sin(angle)
+                    car.pos_vec[0] = circle_x + rail.radius * math.cos(angle)
+                    car.pos_vec[1] = circle_y + rail.radius * math.sin(angle)
 
                     yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
                 phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                car.x += math.cos(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                car.y += math.sin(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.pos_vec[0] += math.cos(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.pos_vec[1] += math.sin(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
-                car.x = pos[0]
-                car.y = pos[1]
-                car.phi = physics_phi[2] * 180 / math.pi
+                car.pos_vec[0] = pos[0]
+                car.pos_vec[1] = pos[1]
+                car.phi = physics_phi[2]
+                print(car.phi)
 
                 car.pos_vec = pos
                 car.vel_vec = vel

@@ -174,9 +174,10 @@ class Car:
             left_turn   = (new_rail.direction == model.TurnRail.Left)
 
             pos_vec_rel    = new_pos_vec - pos_vec_COR # Vector from centre of rail to car
-            #print(pos_vec_rel)
             pos_vec_up     = np.asarray([0, self.rail.direction * lane_radius, 0]) # Vector from centre of rail in positive y(local) coord
             dot_product    = np.dot(pos_vec_rel, pos_vec_up) # Dot product between the two
+            print(dot_product)
+            print(dot_product/(lane_radius*lane_radius))
             relative_angle = np.arccos(np.clip(dot_product/(lane_radius*lane_radius), -1.0, 1.0)) # Angle between Y(global) and y(local) axis
 
             if pos_vec_rel[0] < 0: # If relative position vector points to the right
