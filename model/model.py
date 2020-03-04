@@ -158,7 +158,7 @@ class Track:
 
     def step(self, delta_time):
         for car in self.cars:
-            pos, vel, angle = car.get_new_state(delta_time)
+            pos, vel, physics_phi = car.get_new_state(delta_time)
 
             if car.is_crashed and car.crash_time > 1:
                 car.x = 0
@@ -210,7 +210,9 @@ class Track:
                 car.x += math.cos(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
                 car.y += math.sin(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
-                car.phi = phi * 180 / math.pi + DEFAULT_YAW
+                car.x = pos[0]
+                car.y = pos[1]
+                car.phi = physics_phi[2] * 180 / math.pi
 
                 car.pos_vec = pos
                 car.vel_vec = vel
