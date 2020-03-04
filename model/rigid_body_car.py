@@ -276,7 +276,7 @@ class RigidBodyCar(PointMassCar):
         return 0
 
     def rotate(self, vector, angle):
-        rot_matrix = np.asarray([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
+        rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle)], 0], [0, 0, 1])
         rotated_vector = np.dot(rot_matrix, vector)
         return rotated_vector
 
