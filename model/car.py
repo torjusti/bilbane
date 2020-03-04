@@ -38,7 +38,7 @@ class Car:
     max_power   = None  # W
 
     # TODO: Use returned angle.
-    phi = -90
+    phi = None
 
     # Track section on which the car is situated.
     rail = None
@@ -80,6 +80,7 @@ class Car:
         self.pos_vec = np.zeros(3)
         self.vel_vec = np.zeros(3)
         self.acc_vec = np.zeros(3)
+        self.phi = 0
 
     def get_new_state(self, delta_time):
         """
@@ -113,8 +114,9 @@ class Car:
         """
 
         new_acc_vec = self.get_total_force() / self.mass
-        new_vel_vec = self.vel_vec + new_acc_vec*delta_time
-        new_pos_vec = new_vel_vec*delta_time + .5*new_acc_vec*delta_time
+        new_acc_vec_global = self.rotate(new_acc_vec, -self.phi)
+        new_vel_vec_global = self.get_new_vel(delta_time)
+        new_pos_vec = self.pos_vec + new_vel_vec_global * delta_time + .5*new_acc_vec_global*(delta_time**2)
 
         return new_pos_vec
 
@@ -129,16 +131,14 @@ class Car:
 
         new_acc_vec = self.get_total_force() / self.mass
 
-        print("Acceleration:", new_acc_vec)
-
         old_vel_vec = np.asarray([np.linalg.norm(self.vel_vec), 0, 0])
         new_vel_vec = old_vel_vec + new_acc_vec*delta_time
 
-        print("Velocity:", new_vel_vec)
-
         new_vel_vec[0] = max(0, new_vel_vec[0])
 
-        return new_vel_vec
+        new_vel_vec_global = self.rotate(new_vel_vec, -self.phi)
+
+        return new_vel_vec_global
 
     def get_new_angles(self, new_pos_vec, new_rail):
         """
