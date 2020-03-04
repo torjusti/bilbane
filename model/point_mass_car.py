@@ -33,7 +33,7 @@ class Car:
     motor_coeff = None  # N
 
     # TODO: Use returned angle.
-    yaw = -90
+    theta = -np.pi/2
 
     # Track section on which the car is situated.
     rail = None  # TODO: When is this gonna be updated?
@@ -155,23 +155,23 @@ class Car:
                                                1.0))  # Angle between Y(global) and y(local) axis
 
             if pos_vec_rel[0] < 0:  # If relative position vector points to the right
-                yaw = relative_angle  # Angle between X(global) and x(local) axis
+                theta = relative_angle  # Angle between X(global) and x(local) axis
             else:
-                yaw = 2 * np.pi - relative_angle  # Angle between X(global) and x(local) axis
+                theta = 2 * np.pi - relative_angle  # Angle between X(global) and x(local) axis
 
             if left_turn:
-                yaw = yaw + np.pi  # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
+                theta = theta + np.pi  # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
 
-            if (yaw >= 2 * np.pi):
-                yaw = yaw - 2 * np.pi
-            if (yaw < 0):
-                yaw = yaw + 2 * np.pi
+            if (theta >= 2 * np.pi):
+                theta = theta - 2 * np.pi
+            if (theta < 0):
+                theta = theta + 2 * np.pi
 
         # Else we are on a straight
         else:
-            yaw = new_rail.global_angle
+            theta = new_rail.global_angle
 
-        new_angle_vec = np.asarray([0, 0, yaw])
+        new_angle_vec = np.asarray([0, 0, theta])
         return new_angle_vec
 
     # ---------------------------------------------------------------------------
