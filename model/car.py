@@ -77,7 +77,7 @@ class Car:
         self.motor_coeff = .1         # N/(m/s)
         self.max_power   = .03        # W
 
-        self.pos_vec = np.zeros(3)
+        self.pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
         self.acc_vec = np.zeros(3)
         self.phi = 0.0
@@ -195,21 +195,32 @@ class Car:
             total_force_vec -- ndarray containing force acting on the car (in x-, y- and z-direction)
         """
 
-        total_force_vec = ( self.get_thrust_force()
-                          + self.get_lateral_friction() )
-        """
-        total_force_vec = ( self.get_rolling_resistance()
-                          + self.get_motor_brake_force()
-                          + self.get_axle_friction()
-                          + self.get_pin_friction()
-                          + self.get_lateral_friction()
-                          + self.get_magnet_force()
-                          + self.get_gravity_force()
-                          + self.get_normal_force()
-                          + self.get_thrust_force()
-                          + self.get_drag_force()
-                          + self.get_lateral_pin_force() )
-        """
+        rolling_resistance = np.zeros(3) #self.get_rolling_resistance()
+        motor_brake_force  = np.zeros(3) #self.get_motor_brake_force()
+        axle_friction      = np.zeros(3) #self.get_axle_friction()
+        pin_friction       = np.zeros(3) #self.get_pin_friction()
+        lateral_friction   = self.get_lateral_friction()
+        magnet_force       = np.zeros(3) #self.get_magnet_force()
+        gravity_force      = np.zeros(3) #self.get_gravity_force()
+        normal_force       = np.zeros(3) #self.get_normal_force()
+        thrust_force       = self.get_thrust_force()
+        drag_force         = np.zeros(3) #self.get_drag_force()
+        lateral_pin_force  = np.zeros(3) #self.get_lateral_pin_force()
+
+        print(lateral_friction)
+
+        total_force_vec = ( rolling_resistance
+                          + motor_brake_force
+                          + axle_friction
+                          + pin_friction
+                          + lateral_friction
+                          + magnet_force
+                          + gravity_force
+                          + normal_force
+                          + thrust_force
+                          + drag_force
+                          + lateral_pin_force )
+
         """
         print("Rolling resitance:", self.get_rolling_resistance(), "\n",
               "Motor brake force:", self.get_motor_brake_force(), "\n",
@@ -420,15 +431,20 @@ class Car:
     def get_centrifugal_force(self):
         """
         Purpose: Calculate centrifugal force experienced by the car
-        Formula: F = ma = mv^2/r
+        Formula: F = ma = mv^2/r, v=tangential velocity
         Returns:
             cent_vec -- ndarray containing the components of the centrifugal force experienced by the car (in x-, y- and z-direction)
         """
 
         cent_vec = np.zeros(3)
 
+        # TODO: Should only use tangential velocity
+
+        local_vel_vec = self.rotate(self.vel_vec, self.phi)
+        tangential_speed = local_vel_vec[0]
+
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
-            cent_magnitude = np.dot(self.vel_vec, self.vel_vec) * self.mass / self.rail.get_lane_radius(self.lane)
+            cent_magnitude = (tangential_speed**2) * self.mass / self.rail.get_lane_radius(self.lane)
             cent_vec = self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec

@@ -7,16 +7,8 @@ from visualization import game
 def main():
     rails = [
         st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Right),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Right),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),

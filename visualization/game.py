@@ -85,7 +85,9 @@ class SlotCarGame(arcade.Window):
         self.explosions_list.draw()
 
     def update(self, delta_time):
-        self.track.step(delta_time)
+        steps_per_frame = 10
+        for i in range(steps_per_frame):
+            self.track.step(delta_time/steps_per_frame)
 
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]

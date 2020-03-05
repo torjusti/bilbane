@@ -213,7 +213,6 @@ class Track:
                 car.pos_vec[0] = pos[0]
                 car.pos_vec[1] = pos[1]
                 car.phi = physics_phi[2]
-                print(car.phi)
 
                 car.pos_vec = pos
                 car.vel_vec = vel
