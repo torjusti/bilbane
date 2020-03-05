@@ -169,29 +169,11 @@ class Car:
 
         # If on a turn
         if isinstance(new_rail, model.TurnRail):
-            pos_vec_COR = new_rail.get_rail_center()
-            lane_radius = new_rail.get_lane_radius(self.lane)
-            left_turn   = (new_rail.direction == model.TurnRail.Left)
-
-            pos_vec_rel    = new_pos_vec - pos_vec_COR # Vector from centre of rail to car
-            pos_vec_up     = np.asarray([0, self.rail.direction * lane_radius, 0]) # Vector from centre of rail in positive y(local) coord
-            dot_product    = np.dot(pos_vec_rel, pos_vec_up) # Dot product between the two
-            print(dot_product)
-            print(dot_product/(lane_radius*lane_radius))
-            relative_angle = np.arccos(np.clip(dot_product/(lane_radius*lane_radius), -1.0, 1.0)) # Angle between Y(global) and y(local) axis
-
-            if pos_vec_rel[0] < 0: # If relative position vector points to the right
-                phi = relative_angle # Angle between X(global) and x(local) axis
-            else:
-                phi = 2*np.pi - relative_angle # Angle between X(global) and x(local) axis
-
-            if left_turn:
-                phi = phi + np.pi # Left turn offsets the calculations above with 180 degrees because of flipped x(local) axis
-
-            if phi >= 2*np.pi:
-                phi = phi - 2*np.pi
-            if phi < 0:
-                phi = phi + 2*np.pi
+            rail_center_vec = new_rail.get_rail_center()
+            radial_vec = self.pos_vec - rail_center_vec
+            rotation_matrix = np.asarray([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+            tangent_vec = np.dot(rotation_matrix, radial_vec)
+            phi = np.arctan2(tangent_vec[1], tangent_vec[0])
 
         # Else we are on a straight
         else:
@@ -285,8 +267,6 @@ class Car:
 
         if np.linalg.norm(self.vel_vec) < 1e-3 or self.is_reversing():
             mbrake_vec = np.zeros_like(mbrake_vec)
-
-        print(mbrake_vec)
 
         return mbrake_vec
 
