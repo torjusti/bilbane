@@ -171,7 +171,7 @@ class Car:
         if isinstance(new_rail, model.TurnRail):
             rail_center_vec = new_rail.get_rail_center()
             radial_vec = self.pos_vec - rail_center_vec
-            rotation_matrix = np.asarray([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+            rotation_matrix = np.asarray([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) * self.rail.direction
             tangent_vec = np.dot(rotation_matrix, radial_vec)
             phi = np.arctan2(tangent_vec[1], tangent_vec[0])
 
