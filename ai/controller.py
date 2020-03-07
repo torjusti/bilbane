@@ -1,4 +1,5 @@
 import numpy as np
+from tensorboardX import SummaryWriter
 from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
 from ai.ddpg_agent import DDPGAgent
@@ -7,7 +8,7 @@ from model.car import Car
 from model import model
 import os
 
-LOAD_MODEL = True
+LOAD_MODEL = False
 DELTA_TIME = 1 / 60
 LOCAL_STATE = False
 RAIL_LOOKAHEAD = 5
@@ -25,7 +26,7 @@ def get_state(car):
 
     rail = car.rail
 
-    for i in range(1 + RAIL_LOOKAHEAD):
+    for _ in range(1 + RAIL_LOOKAHEAD):
         rail_information.extend([
             rail.radius if isinstance(rail, model.TurnRail) else 0,
             rail.direction if isinstance(rail, model.TurnRail) else 0,
@@ -83,6 +84,8 @@ class AIController:
 
 
 def train(track, car):
+    writer = SummaryWriter(flush_secs=10)
+
     env = SlotCarEnv(track, car)
 
     noise = OrnsteinUhlenbeckNoise(1, dt=1e-2)
@@ -120,6 +123,8 @@ def train(track, car):
             if done:
                 break
 
+        writer.add_scalar('reward/train', episode_reward, episode)
+
         print(f'Episode {episode}: {episode_reward}, laps: {car.laps_completed}')
 
         if episode % CHECKPOINT == CHECKPOINT - 1:
@@ -139,6 +144,8 @@ def train(track, car):
             print(f'Reward on test episode: {total_reward}')
 
             agent.save_model(f'actor-{episode}.pth')
+
+            writer.add_scalar('reward/test', total_reward, episode)
 
     # Reset car position to leave model untouched after training.
     car.reset()
