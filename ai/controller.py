@@ -7,7 +7,6 @@ from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
 from ai.ddpg_agent import DDPGAgent
 from ai.td3_agent import TD3Agent
-from model.car import Car
 from model import model
 
 # Size of time step used when training.
@@ -26,6 +25,10 @@ AGENT_TYPE = 'ddpg'
 BATCH_SIZE = 128
 # Interval at which the model should be saved.
 CHECKPOINT = 10
+# Number of episodes to train for.
+EPISODES = 1000
+# Number of timesteps in an episode.
+EPISODE_LENGTH = 1000
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
@@ -101,6 +104,23 @@ class AIController:
         return self.agent.get_action(get_state(self.car)).item()
 
 
+def evaluate(env, agent, episode_length=EPISODE_LENGTH):
+    """ Evaluate the agent without noise. """
+    state, done = env.reset(), False
+    total_reward = 0
+
+    for _ in range(episode_length):
+        action = agent.get_action(state).item()
+        next_state, reward, done = env.step(action)
+        total_reward += reward
+        state = next_state
+
+        if done:
+            break
+
+    return total_reward
+
+
 def train(track, car):
     writer = SummaryWriter(flush_secs=10)
 
@@ -119,21 +139,17 @@ def train(track, car):
 
     replay_buffer = ReplayBuffer()
 
-    for episode in range(2000):
+    for episode in range(EPISODES):
         state, done = env.reset(), False
         episode_reward = 0
         noise.reset()
 
-        for _ in range(1000):
+        for _ in range(EPISODE_LENGTH):
             action = (agent.get_action(state) + noise()).clip(0, 1)
-
             next_state, reward, done = env.step(action.item())
-
             replay_buffer.add(state, action, next_state, reward, done)
-
-            state = next_state
-
             episode_reward += reward
+            state = next_state
 
             if len(replay_buffer) >= BATCH_SIZE:
                 agent.update(replay_buffer.sample(BATCH_SIZE))
@@ -146,24 +162,10 @@ def train(track, car):
         print(f'Episode {episode}: {episode_reward}, laps: {car.laps_completed}')
 
         if episode % CHECKPOINT == CHECKPOINT - 1:
-            total_reward = 0
-
-            state, done = env.reset(), False
-
-            for _ in range(1000):
-                action = agent.get_action(state).item()
-                next_state, reward, done = env.step(action)
-                total_reward += reward
-                state = next_state
-
-                if done:
-                    break
-
-            print(f'Reward on test episode: {total_reward}')
-
+            evaluation = evaluate(env, agent)
+            print(f'Reward on test episode: {evaluation}')
             agent.save_model(f'actor-{episode}.pth')
-
-            writer.add_scalar('reward/test', total_reward, episode)
+            writer.add_scalar('reward/test', evaluation, episode)
 
     # Reset car position to leave model untouched after training.
     car.reset()

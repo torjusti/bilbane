@@ -2,3 +2,4 @@
 .idea/
 *-*.pth
 runs/
+*.db
