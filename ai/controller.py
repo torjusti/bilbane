@@ -1,4 +1,7 @@
 import numpy as np
+import random
+import os
+
 from tensorboardX import SummaryWriter
 from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
@@ -6,14 +9,22 @@ from ai.ddpg_agent import DDPGAgent
 from ai.td3_agent import TD3Agent
 from model.car import Car
 from model import model
-import os
 
-LOAD_MODEL = False
+# Size of time step used when training.
 DELTA_TIME = 1 / 60
+# Whether global position or local rail information should be used.
 LOCAL_STATE = False
+# Number of rails to consider when using LOCAL_STATE.
 RAIL_LOOKAHEAD = 5
+# Whether or not the initial car position should be randomized.
+RANDOM_START = False
+# Whether or not the controller should load a pre-trained model.
+LOAD_MODEL = True
+# Algorithm to use for training. Either `ddpg` or `td3`.
 AGENT_TYPE = 'ddpg'
+# Batch size to use when training.
 BATCH_SIZE = 128
+# Interval at which the model should be saved.
 CHECKPOINT = 10
 
 def get_state(car):
@@ -47,6 +58,13 @@ class SlotCarEnv:
     def reset(self):
         """ Reset the car to its original position. Used at the end of each episode. """
         self.car.reset()
+
+        if RANDOM_START:
+            # Put car back on track at an uniformly selected random position.
+            rail_weights = map(lambda rail: rail.get_length(self.car.lane), self.track.rails)
+            self.car.rail = random.choices(population=self.track.rails, weights=rail_weights)[0]
+            self.car.rail_progress = random.uniform(0, 1)
+
         return self.state
 
     @property
