@@ -37,6 +37,11 @@ class SlotCarGame(arcade.Window):
 
         arcade.set_background_color(arcade.color.WHITE)
 
+        self.round_timer = {}  # Car to current round time
+        self.round_times = {}  # Car to list of round times
+        self.global_time = 0  # The total time since game start
+        self.previous_rail = None
+
     def setup_track(self):
         self.track_element_list = arcade.ShapeElementList()
 
@@ -49,7 +54,7 @@ class SlotCarGame(arcade.Window):
         for coord in self.track.turn_track_coordinates:
             coord[:2] = self.transform(*coord[:2])
             coord[2:4] = self.scale_length(coord[2]), self.scale_length(coord[3])
-            shape = create_arc_outline.create_arc_outline(*coord[0:4], arcade.color.BLACK,*coord[4:6])
+            shape = create_arc_outline.create_arc_outline(*coord[0:4], arcade.color.BLACK, *coord[4:6])
             self.track_element_list.append(shape)
 
     def setup(self):
@@ -62,6 +67,8 @@ class SlotCarGame(arcade.Window):
             car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png', SPRITE_SCALING_CAR)
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
+            self.round_timer[car] = 0
+            self.round_times[car] = []
 
     def transform(self, x, y):
         """ Take car and track coordinates, and calculate to pixel coordinates. """
@@ -85,8 +92,41 @@ class SlotCarGame(arcade.Window):
         for car in self.car_sprites:
             car.draw()
         self.explosions_list.draw()
+        self.draw_time()
+
+    def draw_time(self):
+        color = {-1: arcade.color.BLUE, 1: arcade.color.RED}
+        best_times = {}
+        for i, car in enumerate(reversed(self.track.cars)):
+            s = f"{self.seconds_to_string(self.round_timer[car], decimals=.5)}"
+            arcade.draw_text(s, 0, 12 * i, color[car.lane], 12)
+            times = self.round_times[car]
+            if times:
+                best_times[car] = min(times)
+
+        if best_times.keys():
+            sort = sorted(best_times.items(), key=lambda e: e[1])
+            for i, (car, time) in enumerate(sort):
+                s = f"{self.seconds_to_string(best_times[car], decimals=3)}"
+                arcade.draw_text(s, 0, self.height - 12 * (i + 2), color[car.lane], 12)
+
+    @staticmethod
+    def seconds_to_string(seconds, decimals=1.0):
+        minutes = int(seconds) // 60
+        sec = int(seconds) % 60
+        if decimals == 0.5:
+            # Round down to half second
+            milli = int((seconds - (sec + minutes * 60)) * 1000)
+            decimals = 1
+            milli = 0 if milli < 500 else 5
+        else:
+            milli = int((seconds - (sec + minutes * 60))*10 ** decimals)
+
+        return f"{minutes:02d}:{sec:02d}:{milli:0{int(decimals)}d}"
 
     def update(self, delta_time):
+        self.global_time += delta_time
+
         for car in self.track.cars:
             # If this car is AI-controlled, update the input with the new state.
             if car.controller and not car.is_crashed:
@@ -94,7 +134,7 @@ class SlotCarGame(arcade.Window):
 
         steps_per_frame = 1
         for i in range(steps_per_frame):
-            self.track.step(delta_time/steps_per_frame)
+            self.track.step(delta_time / steps_per_frame)
 
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
@@ -117,6 +157,22 @@ class SlotCarGame(arcade.Window):
                 self.explosions_list.update()
                 if i in self.cars_crashed:
                     self.cars_crashed.remove(i)
+
+            self.round_time_step(car, delta_time)
+
+    def round_time_step(self, car: Car, delta_time):
+        self.round_timer[car] += delta_time
+
+        if self.previous_rail == self.track.rails[-1] and car.rail == self.track.rails[0]:
+            # Lap completed, only if speed is nonzero.
+            if np.linalg.norm(car.vel_vec) == 0:
+                return
+
+            new_time = self.round_timer[car]
+            self.round_times[car].append(new_time)
+            self.round_timer[car] = 0  # Reset clock
+
+        self.previous_rail = car.rail
 
     def on_key_press(self, symbol: int, modifiers: int):
         """
