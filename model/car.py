@@ -7,7 +7,7 @@ TOL = 0.001
 
 class Car:
     # Run-off criterion for point mass car
-    MAX_CENTRIFUGAL_FORCE = 10
+    MAX_CENTRIFUGAL_FORCE = 1
 
     # Maximum voltage from track to car
     TRACK_VOLTAGE = 12

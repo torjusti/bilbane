@@ -161,12 +161,13 @@ class Track:
             pos, vel, physics_phi = car.get_new_state(delta_time)
 
             if car.is_crashed and car.crash_time > 1:
-                car.pos_vec[0] = 0
-                car.pos_vec[1] = 0
+                car.pos_vec = np.zeros_like(car.pos_vec)
+                car.vel_vec = np.zeros_like(car.vel_vec.shape)
                 car.phi = 0
                 car.rail = self.rails[0]
+                car.controller_input = 0
+                car.rail_progress = 0
                 car.is_crashed = False
-                car.vel_vec = np.zeros_like(car.vel_vec.shape)
                 car.crash_time = 0
                 continue
 
