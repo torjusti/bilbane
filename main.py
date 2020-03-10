@@ -7,8 +7,16 @@ from visualization import game
 def main():
     rails = [
         st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Curve(2, 45, direction=st.Curve.Right),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Curve(2, 45, direction=st.Curve.Right),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
@@ -19,8 +27,8 @@ def main():
     track = model.Track(rails, None)
 
     cars = [
-        Car(model.Rail.Lane1, track, key_control=True),
-        Car(model.Rail.Lane2, track),
+        Car(model.Rail.Lane2, track, key_control=True),
+        #Car(model.Rail.Lane2, track),
     ]
 
     track.cars = cars
