@@ -14,6 +14,7 @@ class CarTest(TestCaseExtra):
         self.test_track_1 = self.test_track1()
         self.test_track_2 = self.test_track2()
         self.test_track_3 = self.test_track3()
+        self.tracks = [self.test_track_1, self.test_track_2, self.test_track_3]
 
     def test_track1(self):
         # Test set-up
@@ -90,19 +91,31 @@ class CarTest(TestCaseExtra):
 
     def test_gravity_force(self):
         # GRAVITATIONAL FORCE TEST
-        gravity_force = self.test_track_1.cars[0].mass * G_ACC
-        self.assertAlmostEqualVector([0, 0, -gravity_force], self.test_track_1.cars[0].get_gravity_force(), 4,
-                                     "Test gravity force.")
+        for track in self.tracks:
+            for car in track.cars:
+                gravity_force = self.test_track_1.cars[0].mass * G_ACC
+                self.assertAlmostEqualVector([0, 0, -gravity_force], car.get_gravity_force(), 4,
+                                             "Test gravity force.")
 
     def test_normal_force(self):
         # NORMAL FORCE TEST
-        self.assertAlmostEqualVector([0, 0, 1.7848], self.test_track_1.cars[0].get_normal_force(), 4,
-                                     "Test normal force.")
+        for track in self.tracks:
+            for car in track.cars:
+                normal_force = car.mag_coeff + car.mass * G_ACC
+                self.assertAlmostEqualVector([0, 0, normal_force], car.get_normal_force(),
+                                             4, "Test normal force.")
 
     def test_rolling_resistance(self):
         # ROLLING RESISTANCE TEST
-        self.assertAlmostEqualVector([-0.017848, 0, 0], self.test_track_1.cars[0].get_rolling_resistance(), 6,
-                                     "Test rolling resistance.")
+        for track in self.tracks:
+            for car in track.cars:
+                # car: Car = self.test_track1().cars[0]
+                N = car.mag_coeff + car.mass * G_ACC
+                rolling_rest = - car.mu_roll * N
+                velocity = np.array([1, 2, 3])
+                car.vel_vec = velocity
+                self.assertAlmostEqualVector([rolling_rest, 0, 0], car.get_rolling_resistance(), 6,
+                                             "Test rolling resistance.")
 
     def test_lateral_friction_force(self):
         # LATERAL FRICTION TEST 1 -- STRAIGHT
@@ -125,14 +138,18 @@ class CarTest(TestCaseExtra):
                                      "Test lateral friction.")
 
         # LATERAL FRICTION TEST 5 -- LEFT TURN
-        self.assertAlmostEqualVector([0, -1.606, 0], self.test_track_3.cars[0].get_lateral_friction(), 3,
+        self.assertAlmostEqualVector([0, 1.606, 0], self.test_track_3.cars[0].get_lateral_friction(), 3,
                                      "Test lateral friction.")
 
     def test_thrust_force(self):
         # THRUST FORCE TEST
-        test_track = self.test_track_1
-        test_track.cars[0].controller_input = 0.25
-        self.assertAlmostEqualVector([0.39, 0, 0], test_track.cars[0].get_thrust_force(), 4, "Test thrust force.")
+        for track in self.tracks:
+            for car in track.cars:
+                car.controller_input = 0.25
+                velocity = np.array([1, 2, 3])
+                car.vel_vec = velocity
+                thrust = car.controller_input * car.max_power / np.linalg.norm(velocity)
+                self.assertAlmostEqualVector([thrust, 0, 0], car.get_thrust_force(), 4, "Test thrust force.")
 
     def test_drag_force(self):
         # DRAG FORCE TEST
@@ -164,6 +181,7 @@ class CarTest(TestCaseExtra):
                                      "Test lateral pin force.")
 
         # LATERAL PIN FORCE TEST 5 -- LEFT TURN
+
         self.assertAlmostEqualVector([0, 3.00, 0], self.test_track_3.cars[0].get_lateral_pin_force(), 2,
                                      "Test lateral pin force.")
 
