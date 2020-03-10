@@ -156,10 +156,6 @@ class Track:
 
     def step(self, delta_time):
         for car in self.cars:
-            # If this car is AI-controlled, update the input with the new state.
-            if car.controller and not car.is_crashed:
-                car.controller_input = car.controller.step()
-
             pos, vel, physics_phi = car.get_new_state(delta_time)
 
             if car.is_crashed and car.crash_time > 1:
@@ -212,9 +208,9 @@ class Track:
                 # car.pos_vec = pos
                 # car.vel_vec = vel
 
-            if car.rail_progress == 1:
-                car.rail = car.rail.next_rail
-                car.rail_progress = 0
+                if car.rail_progress == 1:
+                    car.rail = car.rail.next_rail
+                    car.rail_progress = 0
 
-                if car.rail.next_rail == self.rails[0]:
-                    car.laps_completed += 1
+                    if car.rail.next_rail == self.rails[0]:
+                        car.laps_completed += 1

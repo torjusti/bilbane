@@ -78,6 +78,8 @@ class SlotCarEnv:
     def step(self, action):
         """ Get an action from the agent for one time-step of the simulation. """
         self.car.controller_input = action
+
+        # TODO: The actual game runs at a much finer granularity.
         self.track.step(DELTA_TIME)
 
         if self.car.is_crashed:
@@ -126,7 +128,7 @@ def train(track, car):
 
     env = SlotCarEnv(track, car)
 
-    noise = OrnsteinUhlenbeckNoise(1, dt=1e-2)
+    noise = OrnsteinUhlenbeckNoise(1, dt=0.1)
 
     if AGENT_TYPE == 'ddpg':
         agent = DDPGAgent(env.state.shape[0], 1)

@@ -87,7 +87,12 @@ class SlotCarGame(arcade.Window):
         self.explosions_list.draw()
 
     def update(self, delta_time):
-        steps_per_frame = 10
+        for car in self.track.cars:
+            # If this car is AI-controlled, update the input with the new state.
+            if car.controller and not car.is_crashed:
+                car.controller_input = car.controller.step()
+
+        steps_per_frame = 1
         for i in range(steps_per_frame):
             self.track.step(delta_time/steps_per_frame)
 

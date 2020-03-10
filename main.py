@@ -28,7 +28,7 @@ def main():
     track = model.Track(rails, None)
 
     cars = [
-        Car(model.Rail.Lane2, track, key_control=True),
+        Car(model.Rail.Lane1, track, key_control=True),
         Car(model.Rail.Lane2, track),
     ]
 
