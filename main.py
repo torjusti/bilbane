@@ -20,7 +20,7 @@ def main():
 
     cars = [
         Car(model.Rail.Lane1, track, key_control=True),
-        Car(model.Rail.Lane2, track),
+        #Car(model.Rail.Lane2, track),
     ]
 
     track.cars = cars
