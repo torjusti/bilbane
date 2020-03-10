@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from model import model
-from model.car import Car, G_ACC
+from model.car import Car, G_ACC, RHO
 from tests.utils import TestCaseExtra
 
 
@@ -87,7 +87,10 @@ class CarTest(TestCaseExtra):
 
     def test_magnet_force(self):
         # MAGNET FORCE TEST
-        self.assertAlmostEqualVector([0, 0, -1], self.test_track_1.cars[0].get_magnet_force(), 1, "Test magnet force.")
+        for track in self.tracks:
+            for car in track.cars:
+                self.assertAlmostEqualVector([0, 0, -car.mag_coeff], self.test_track_1.cars[0].get_magnet_force(), 4,
+                                             "Test magnet force.")
 
     def test_gravity_force(self):
         # GRAVITATIONAL FORCE TEST
@@ -153,9 +156,11 @@ class CarTest(TestCaseExtra):
 
     def test_drag_force(self):
         # DRAG FORCE TEST
-        test_track = self.test_track_1
-        test_track.cars[0].vel_vec = np.asarray([0.2, -.5, .7])
-        self.assertAlmostEqualVector([-0.00037, 0, 0], test_track.cars[0].get_drag_force(), 5, "Test drag force.")
+        for track in self.tracks:
+            for car in track.cars:
+                car.vel_vec = np.asarray([0.2, -.5, .7])
+                drag = -.5 * RHO * car.area * car.drag_coeff * np.linalg.norm(car.vel_vec) ** 2
+                self.assertAlmostEqualVector([drag, 0, 0], car.get_drag_force(), 5, "Test drag force.")
 
     def test_lateral_pin_force(self):
         # LATERAL PIN FORCE TEST 1 -- STRAIGHT
