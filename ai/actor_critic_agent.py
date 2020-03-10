@@ -1,9 +1,10 @@
 import torch
+from abc import ABC, abstractmethod
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class ActorCriticAgent:
+class ActorCriticAgent(ABC):
     def get_action(self, state):
         """ Returns the action for `state` according to the local policy. """
         # We need to use evaluation mode here because of batch
@@ -29,3 +30,7 @@ class ActorCriticAgent:
     def load_model(self, actor_path):
         """ Load the actor model from file. """
         self.actor.load_state_dict(torch.load(actor_path))
+
+    @abstractmethod
+    def update(self, batch):
+        pass

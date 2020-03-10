@@ -32,7 +32,7 @@ EPISODE_LENGTH = 1000
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
-    as well as information about the following two rails on the track. """
+    as well as information about the following `RAIL_LOOKAHEAD` rails on the track. """
     if not LOCAL_STATE:
         return np.concatenate((np.array([car.rail_progress, car.track.rails.index(car.rail)]), car.vel_vec))
 
