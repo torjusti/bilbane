@@ -41,6 +41,7 @@ class SlotCarGame(arcade.Window):
         self.round_timer = {}  # Car to current round time
         self.round_times = {}  # Car to list of round times
         self.global_time = 0  # The total time since game start
+        self.previous_rail = None
 
     def setup_track(self):
         self.track_element_list = arcade.ShapeElementList()
@@ -155,13 +156,16 @@ class SlotCarGame(arcade.Window):
     def round_time_step(self, car: Car, delta_time):
         self.round_timer[car] += delta_time
 
-        if car.rail_progress == 0 and car.rail == self.track.rails[0]:
+        if self.previous_rail == self.track.rails[-1] and car.rail == self.track.rails[0]:
             # Lap completed, only if speed is nonzero.
             if np.linalg.norm(car.vel_vec) == 0:
                 return
+
             new_time = self.round_timer[car]
             self.round_times[car].append(new_time)
             self.round_timer[car] = 0  # Reset clock
+
+        self.previous_rail = car.rail
 
     def on_key_press(self, symbol: int, modifiers: int):
         """
