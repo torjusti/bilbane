@@ -124,7 +124,11 @@ class SlotCarGame(arcade.Window):
 
         return f"{minutes:02d}:{sec:02d}:{milli:0{int(decimals)}d}"
 
-    def update(self, delta_time):
+    def update(self, _):
+        # Instead of letting Arcade control the frame rate, we manually run at
+        # 60 fps in order to prevent the frame rate from affecting the physics.
+        delta_time = 1 / 60
+
         self.global_time += delta_time
 
         for car in self.track.cars:
@@ -134,7 +138,7 @@ class SlotCarGame(arcade.Window):
 
         steps_per_frame = 1
         for i in range(steps_per_frame):
-            self.track.step(delta_time / steps_per_frame)
+            self.track.step(delta_time/steps_per_frame)
 
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
