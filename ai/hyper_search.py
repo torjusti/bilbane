@@ -10,18 +10,19 @@ from model import model
 from model import standard_tracks as st
 
 # Name of the current study for Optuna.
-STUDY_NAME = 'ddpg'
+STUDY_NAME = 'td3'
 # Progress database file for Optuna.
-DB_FILE = 'sqlite:///ddpg.db'
+DB_FILE = 'sqlite:///td3.db'
 # The agent type to optimize.
-AGENT_TYPE = 'ddpg'
+AGENT_TYPE = 'td3'
 # Number of episodes to train for per trial.
-EPISODES = 50
+EPISODES = 100
 # The number of steps in each episode.
 EPISODE_LENGTH = 1000
 # Interval to report training value at for pruning.
 CHECKPOINT = 10
 
+# Note: Hyperparameters from `controller` related to state encoding still affect the training here.
 
 def get_training_track():
     """ Creates a simple track for training on. """
@@ -90,7 +91,7 @@ def objective(trial):
 
             if done:
                 break
-    
+
         print(f'Episode {episode}: {episode_reward} reward')
 
         if episode % CHECKPOINT == CHECKPOINT - 1:

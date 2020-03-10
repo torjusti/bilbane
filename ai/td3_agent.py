@@ -35,7 +35,7 @@ class TD3Agent(ActorCriticAgent):
 
         with torch.no_grad():
             # Select action according to policy and add clipped noise.
-            noise = (torch.randn_like(action) * 0.2).clamp(-0.5, 0.5)
+            noise = (torch.randn_like(action) * 0.1).clamp(-0.25, 0.25)
             next_action = (self.actor_target(next_state) + noise).clamp(0, 1)
 
             # Find the lowest prediction.
