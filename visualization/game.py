@@ -123,7 +123,6 @@ class SlotCarGame(arcade.Window):
         return f"{minutes:02d}:{sec:02d}:{milli:0{int(decimals)}d}"
 
     def update(self, delta_time):
-        self.track.step(delta_time)
         self.global_time += delta_time
 
         steps_per_frame = 10
