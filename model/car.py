@@ -7,7 +7,7 @@ TOL = 0.001
 
 class Car:
     # Run-off criterion for point mass car
-    MAX_CENTRIFUGAL_FORCE = 1
+    MAX_CENTRIFUGAL_FORCE = 2
 
     # Maximum voltage from track to car
     TRACK_VOLTAGE = 12
@@ -76,7 +76,7 @@ class Car:
         self.mu_roll     = .01        # dimensionless
         self.mu_axle     = .1         # N
         self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .3        # W
+        self.max_power   = .5        # W
 
         self.pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)

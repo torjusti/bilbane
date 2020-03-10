@@ -162,7 +162,7 @@ class Track:
 
             if car.is_crashed and car.crash_time > 1:
                 car.pos_vec = np.zeros_like(car.pos_vec)
-                car.vel_vec = np.zeros_like(car.vel_vec.shape)
+                car.vel_vec = np.zeros_like(car.vel_vec)
                 car.phi = 0
                 car.rail = self.rails[0]
                 car.controller_input = 0
@@ -192,10 +192,10 @@ class Track:
                 car.rail_progress = min(car.rail_progress, 1)
                 if isinstance(rail, StraightRail):
                     car.pos_vec[0] = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
-                    car.y = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
+                    car.pos_vec[1] = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
 
                     car.pos_vec[0] += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                    car.y += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                    car.pos_vec[1] += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
                 elif isinstance(rail, TurnRail):
                     circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
@@ -204,19 +204,21 @@ class Track:
                     car.pos_vec[0] = circle_x + rail.radius * math.cos(angle)
                     car.pos_vec[1] = circle_y + rail.radius * math.sin(angle)
 
-                    yaw = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+                    car.phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+                    car.pos_vec[0] += math.cos(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                    car.pos_vec[1] += math.sin(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
-                car.pos_vec[0] += math.cos(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                car.pos_vec[1] += math.sin(phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-
-                car.pos_vec[0] = pos[0]
-                car.pos_vec[1] = pos[1]
-                car.phi = physics_phi[2]
-
-                car.pos_vec = pos
                 car.vel_vec = vel
+
+                #phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+
+                #car.pos_vec[0] = pos[0]
+                #car.pos_vec[1] = pos[1]
+                #car.phi = physics_phi[2]
+
+                #car.pos_vec = pos
+                #car.vel_vec = vel
 
             if car.rail_progress == 1:
                 car.rail = car.rail.next_rail
