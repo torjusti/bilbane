@@ -2,6 +2,7 @@ import numpy as np
 from model import model
 
 G_ACC = 9.81
+RHO   = 1.2  # density of air
 TOL = 0.001
 
 
@@ -400,8 +401,6 @@ class Car:
         """
 
         # TODO: Make valid for skidding car (skid => area and drag coefficient change)
-
-        RHO   = 1.2 # density of air
         D     = .5 * RHO * self.area * self.drag_coeff * np.dot(self.vel_vec, self.vel_vec)
         d_vec = np.asarray([-D, 0, 0])
 
