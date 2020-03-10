@@ -98,6 +98,10 @@ class Car:
         new_angle_vec = None
         new_vel_vec   = None
 
+        old_speed = np.linalg.norm(self.vel_vec)
+        local_old_vel = np.asarray([old_speed, 0, 0])
+        self.vel_vec = self.rotate(local_old_vel, -self.phi)
+
         if not self.is_crashed:
             new_pos_vec   = self.get_new_pos(delta_time)
             new_vel_vec   = self.get_new_vel(delta_time)
