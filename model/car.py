@@ -26,6 +26,7 @@ class Car:
     pos_vec = None
     vel_vec = None
     acc_vec = None
+    angle_vec = None
 
     mass        = None  # kg
     area        = None  # m^2
@@ -54,7 +55,7 @@ class Car:
     # Input from the controller. Will be converted to a voltage which drives the car
     controller_input = None # Value in interval [0,1]
 
-    def __init__(self, lane, track, key_control=False):
+    def __init__(self, lane, track, key_control=False, track_locked=False):
         self.lane  = lane
         self.track = track
         self.rail = track.rails[0]
@@ -81,7 +82,10 @@ class Car:
         self.pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
         self.acc_vec = np.zeros(3)
+        self.angle_vec = np.zeros(3)
         self.phi = 0.0
+        self.track_locked = track_locked
+
 
     def get_new_state(self, delta_time):
         """
@@ -106,7 +110,77 @@ class Car:
             new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(delta_time)
             new_angle_vec = self.get_new_angles(new_pos_vec)
 
+        # self.get_new_state_track_locked(delta_time)
+
         return new_pos_vec, new_vel_vec, new_angle_vec
+
+    def get_new_state_track_locked(self, delta_time):
+        pos, vel, physics_phi = self.get_new_state(delta_time)
+
+        if self.is_crashed and self.crash_time > 1:
+            self.pos_vec = np.zeros_like(self.pos_vec)
+            self.vel_vec = np.zeros_like(self.vel_vec)
+            self.phi = 0
+            self.rail = self.track.rails[0]
+            self.controller_input = 0
+            self.rail_progress = 0
+            self.is_crashed = False
+            self.crash_time = 0
+            return
+
+        rail = self.rail
+        if self.is_crashed:
+            self.crash_time += delta_time
+
+            if isinstance(rail, model.StraightRail):
+                crash_angle = rail.global_angle
+                self.pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
+                self.pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
+                # car.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
+            elif isinstance(rail, model.TurnRail):
+                crash_angle = rail.global_angle + rail.angle * self.rail_progress * rail.direction
+
+                self.pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
+                self.pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
+                # car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
+
+        else:
+            self.rail_progress += np.linalg.norm(vel) * delta_time / rail.get_length(self.lane)
+            self.rail_progress = min(self.rail_progress, 1)
+            if isinstance(rail, model.StraightRail):
+                self.pos_vec[0] = rail.global_x + np.cos(rail.global_angle) * self.rail_progress * rail.length
+                self.pos_vec[1] = rail.global_y + np.sin(rail.global_angle) * self.rail_progress * rail.length
+
+                self.pos_vec[0] += np.cos(rail.global_angle + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+                self.pos_vec[1] += np.sin(rail.global_angle + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+            elif isinstance(rail, model.TurnRail):
+                circle_x, circle_y, initial_angle = self.track._get_turn_circle(rail)
+
+                angle = initial_angle + rail.angle * self.rail_progress * rail.direction
+
+                self.pos_vec[0] = circle_x + rail.radius * np.cos(angle)
+                self.pos_vec[1] = circle_y + rail.radius * np.sin(angle)
+
+                self.phi = rail.global_angle + rail.angle * self.rail_progress * rail.direction
+
+                self.pos_vec[0] += np.cos(self.phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+                self.pos_vec[1] += np.sin(self.phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+
+            self.vel_vec = vel
+
+            # phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+
+            # car.pos_vec[0] = pos[0]
+            # car.pos_vec[1] = pos[1]
+            # car.phi = physics_phi[2]
+
+            # car.pos_vec = pos
+            # car.vel_vec = vel
+
+        if self.rail_progress == 1:
+            self.rail = self.rail.next_rail
+            self.rail_progress = 0
+
 
     def get_new_pos_and_vel(self, delta_time):
         """
@@ -172,8 +246,6 @@ class Car:
         thrust_force       = self.get_thrust_force()
         drag_force         = self.get_drag_force()
         lateral_pin_force  = self.get_lateral_pin_force()
-
-        print(lateral_friction)
 
         total_force_vec = ( rolling_resistance
                           + motor_brake_force
