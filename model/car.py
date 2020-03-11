@@ -1,5 +1,6 @@
 import numpy as np
 from model import model
+from model.rk4 import rk4_step
 
 G_ACC = 9.81
 RHO   = 1.2  # density of air
@@ -94,9 +95,9 @@ class Car:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
-        speed = np.linalg.norm(self.vel_vec)
-        local_vel_vec = np.asarray([speed, 0, 0])
-        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        #speed = np.linalg.norm(self.vel_vec)
+        #local_vel_vec = np.asarray([speed, 0, 0])
+        #self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         new_pos_vec   = None
         new_angle_vec = None
@@ -117,12 +118,28 @@ class Car:
             new_pos_vec -- ndarray containing new car position (x,y,z)
         """
 
-        new_acc_vec = self.get_total_force() / self.mass
+        y = np.concatenate((self.pos_vec, self.vel_vec), axis=None)
+        new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
+        #new_y = self.forward_euler_step(y, self.controller_input, delta_time)
+
+        return new_y[:3], new_y[3:]
+
+    def forward_euler_step(self, y, c_in, delta_time):
+        new_acc_vec = self.get_total_force(y[:3], y[3:], c_in) / self.mass
         new_acc_vec_global = self.rotate(new_acc_vec, -self.phi)
         new_vel_vec_global = self.vel_vec + new_acc_vec_global * delta_time
-        new_pos_vec_global = self.pos_vec + self.vel_vec*delta_time + .5*new_acc_vec_global*(delta_time**2)
+        new_pos_vec_global = self.pos_vec + self.vel_vec * delta_time + .5 * new_acc_vec_global * (delta_time ** 2)
 
-        return new_pos_vec_global, new_vel_vec_global
+        return np.concatenate((new_pos_vec_global, new_vel_vec_global), axis=None)
+
+    def dxdt(self, y):
+        return y[3:]
+
+    def dvdt(self, y, c_in):
+        #print(y.shape)
+        local_acc_vec = self.get_total_force(y[:3], y[3:], c_in) / self.mass
+        global_acc_vec = self.rotate(local_acc_vec, -self.phi)
+        return global_acc_vec
 
     def get_new_angles(self, new_pos_vec):
         """
@@ -154,38 +171,38 @@ class Car:
     # ---------------------------------------------------------------------------
     # Calculate forces
 
-    def get_total_force(self):
+    def get_total_force(self, pos, vel, c_in):
         """
         Purpose: Calculate total force on car, and check if it exceeds given force limit
         Returns:
             total_force_vec -- ndarray containing force acting on the car (in x-, y- and z-direction)
         """
 
-        rolling_resistance = self.get_rolling_resistance()
-        motor_brake_force  = self.get_motor_brake_force()
-        axle_friction      = self.get_axle_friction()
-        pin_friction       = self.get_pin_friction()
-        lateral_friction   = self.get_lateral_friction()
-        magnet_force       = self.get_magnet_force()
-        gravity_force      = self.get_gravity_force()
-        normal_force       = self.get_normal_force()
-        thrust_force       = self.get_thrust_force()
-        drag_force         = self.get_drag_force()
-        lateral_pin_force  = self.get_lateral_pin_force()
+        rolling_resistance = self.get_rolling_resistance(pos, vel)
+        motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
+        axle_friction      = self.get_axle_friction(pos, vel)
+        pin_friction       = self.get_pin_friction(pos, vel)
+        lateral_friction   = self.get_lateral_friction(pos, vel)
+        magnet_force       = self.get_magnet_force(pos, vel)
+        gravity_force      = self.get_gravity_force(pos, vel)
+        normal_force       = self.get_normal_force(pos, vel)
+        thrust_force       = self.get_thrust_force(pos, vel, c_in)
+        drag_force         = self.get_drag_force(pos, vel)
+        lateral_pin_force  = self.get_lateral_pin_force(pos, vel)
 
-        print(lateral_friction)
+        print(lateral_pin_force)
 
-        total_force_vec = ( rolling_resistance
-                          + motor_brake_force
-                          + axle_friction
-                          + pin_friction
-                          + lateral_friction
-                          + magnet_force
+        total_force_vec = ( magnet_force
                           + gravity_force
                           + normal_force
                           + thrust_force
-                          + drag_force
-                          + lateral_pin_force )
+                          + lateral_pin_force
+                          + lateral_friction
+                          + pin_friction
+                          + axle_friction
+                          + rolling_resistance
+                          + motor_brake_force
+                          + drag_force )
 
         """
         print("Rolling resitance:", self.get_rolling_resistance(), "\n",
@@ -202,12 +219,12 @@ class Car:
               "Total force:", total_force_vec, "\n")
         """
         # Crash check
-        if np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE:
+        if np.linalg.norm(self.get_centrifugal_force(pos, vel)) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
 
         return total_force_vec
 
-    def get_rolling_resistance(self):
+    def get_rolling_resistance(self, pos, vel):
         """
         Purpose: Calculate rolling resistance acing on the car
         Formula: F_roll = mu_roll * N,   N = normal force
@@ -215,18 +232,18 @@ class Car:
             f1_vec -- ndarray containing the components of the rolling resistance acting on the car (in x-, y- and z-direction)
         """
 
-        n_vec  = self.get_normal_force()
-        N      = np.linalg.norm(n_vec)
+        n_vec  = self.get_normal_force(pos, vel)
+        N      = np.linalg.norm(vel)
         track_friction = self.mu_roll*N
 
         f1_vec = np.asarray([-track_friction, 0, 0])
 
-        if np.linalg.norm(self.vel_vec) < TOL or self.is_reversing():
+        if np.linalg.norm(vel) < TOL or self.is_reversing(pos, vel):
             return np.zeros_like(f1_vec)
 
         return f1_vec
 
-    def get_motor_brake_force(self):
+    def get_motor_brake_force(self, pos, vel, c_in):
         """
         Purpose: Calculate motor brake force
         Formula: Braking torque proportional to speed
@@ -235,17 +252,17 @@ class Car:
         Source https://www.ormec.com/Portals/ormec/Library/Documents/Controllers/Orion/TechNotes/tn038.pdf
         """
 
-        mbrake_vec = np.asarray([-self.motor_coeff*np.linalg.norm(self.vel_vec), 0, 0])
+        mbrake_vec = np.asarray([-self.motor_coeff*np.linalg.norm(vel), 0, 0])
 
-        if not self.controller_input == 0:
+        if not c_in == 0:
             mbrake_vec = np.zeros_like(mbrake_vec)
 
-        if np.linalg.norm(self.vel_vec) < TOL or self.is_reversing():
+        if np.linalg.norm(vel) < TOL or self.is_reversing(pos, vel):
             mbrake_vec = np.zeros_like(mbrake_vec)
 
         return mbrake_vec
 
-    def get_axle_friction(self):
+    def get_axle_friction(self, pos, vel):
         """
         Purpose: Calculate axel friction force
         Return:
@@ -254,13 +271,13 @@ class Car:
 
         axle_fric_vec = np.asarray([-self.mu_axle, 0, 0])
 
-        if np.linalg.norm(self.vel_vec) < TOL or self.is_reversing():
+        if np.linalg.norm(vel) < TOL or self.is_reversing(pos, vel):
             return np.zeros_like(axle_fric_vec)
 
         return axle_fric_vec
 
 
-    def get_pin_friction(self):
+    def get_pin_friction(self, pos, vel):
         """
         Purpose: Calculate friction force acting on pin from rail
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
@@ -268,16 +285,16 @@ class Car:
             f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction)
         """
 
-        l_vec  = self.get_lateral_pin_force()
+        l_vec  = self.get_lateral_pin_force(pos, vel)
         L      = np.linalg.norm(l_vec)
         f2_vec = np.asarray([-self.mu_pin*L, 0, 0])
 
-        if np.linalg.norm(self.vel_vec) < TOL or self.is_reversing():
+        if np.linalg.norm(vel) < TOL or self.is_reversing(pos, vel):
             return np.zeros_like(f2_vec)
 
         return f2_vec
 
-    def get_lateral_friction(self):
+    def get_lateral_friction(self, pos, vel):
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: This force is unphysical for a point mass, and is hence set to zero
@@ -289,7 +306,7 @@ class Car:
 
         return f3_vec
 
-    def get_magnet_force(self):
+    def get_magnet_force(self, pos, vel):
         """
         Purpose: Calculate force from lane acting on the car's magnet
         Returns:
@@ -302,7 +319,7 @@ class Car:
 
         return m_vec
 
-    def get_gravity_force(self):
+    def get_gravity_force(self, pos, vel):
         """
         Purpose: Calculate gravitational force acting on the car
         Formula: G = mg
@@ -314,7 +331,7 @@ class Car:
 
         return g_vec
 
-    def get_normal_force(self):
+    def get_normal_force(self, pos, vel):
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: sum(F_z) = 0 => N = - (G + m_vec)
@@ -326,11 +343,11 @@ class Car:
         # In 3D, we do not necessarily have 0 net force in z-dir,
         # which the current implementation assumes.
 
-        n_vec = - (self.get_magnet_force() + self.get_gravity_force())
+        n_vec = - (self.get_magnet_force(pos, vel) + self.get_gravity_force(pos, vel))
 
         return n_vec
 
-    def get_thrust_force(self):
+    def get_thrust_force(self, pos, vel, c_in):
         """
         Purpose: Calculate thrust force acting on the car's tires from track, due to forced rotation of the tires (by the car's motor)
         Formula: T = C*P/v
@@ -338,12 +355,12 @@ class Car:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
 
-        T = self.controller_input*self.max_power/max(0.12, np.linalg.norm(self.vel_vec))
+        T = c_in*self.max_power/max(0.12, np.linalg.norm(vel))
         t_vec = np.asarray([T, 0, 0])
 
         return t_vec
 
-    def get_drag_force(self):
+    def get_drag_force(self, pos, vel):
         """
         Purpose: Calculate drag force acting on tires from track
         Formula: D = .5 * rho * A * C_d * v^2
@@ -352,15 +369,15 @@ class Car:
         """
 
         # TODO: Make valid for skidding car (skid => area and drag coefficient change)
-        D     = .5 * RHO * self.area * self.drag_coeff * np.dot(self.vel_vec, self.vel_vec)
+        D     = .5 * RHO * self.area * self.drag_coeff * np.dot(vel, vel)
         d_vec = np.asarray([-D, 0, 0])
 
-        if np.linalg.norm(self.vel_vec) < TOL:
+        if np.linalg.norm(vel) < TOL:
             return np.zeros_like(d_vec)
 
         return d_vec
 
-    def get_lateral_pin_force(self):
+    def get_lateral_pin_force(self, pos, vel):
         """
         Purpose: Calculate lateral force from the track acting on the car's pin
         Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
@@ -373,13 +390,13 @@ class Car:
         l_vec = np.zeros(3)
 
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
-            cent_vec = self.get_centrifugal_force()
-            l_vec_magnitude = np.linalg.norm(cent_vec) - np.linalg.norm(self.get_lateral_friction())
+            cent_vec = self.get_centrifugal_force(pos, vel)
+            l_vec_magnitude = np.linalg.norm(cent_vec) - np.linalg.norm(self.get_lateral_friction(pos, vel))
             l_vec[1] = self.rail.direction * l_vec_magnitude
 
         return l_vec
 
-    def get_centrifugal_force(self):
+    def get_centrifugal_force(self, pos, vel):
         """
         Purpose: Calculate centrifugal force experienced by the car
         Formula: F = ma = mv^2/r
@@ -389,7 +406,7 @@ class Car:
 
         cent_vec = np.zeros(3)
 
-        local_vel_vec = self.rotate(self.vel_vec, self.phi)
+        local_vel_vec = self.rotate(vel, self.phi)
         tangential_vel = local_vel_vec[0]
 
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
@@ -403,6 +420,6 @@ class Car:
         rotated_vector = np.dot(rot_matrix, vector)
         return rotated_vector
 
-    def is_reversing(self):
-        local_velocity = self.rotate(self.vel_vec, self.phi)
+    def is_reversing(self,pos, vel):
+        local_velocity = self.rotate(vel, self.phi)
         return local_velocity[0] < 0
