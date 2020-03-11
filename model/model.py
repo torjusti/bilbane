@@ -213,12 +213,12 @@ class Track:
 
                 #phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                #car.pos_vec[0] = pos[0]
-                #car.pos_vec[1] = pos[1]
-                #car.phi = physics_phi[2]
+                car.pos_vec[0] = pos[0]
+                car.pos_vec[1] = pos[1]
+                car.phi = physics_phi[2]
 
-                #car.pos_vec = pos
-                #car.vel_vec = vel
+                car.pos_vec = pos
+                car.vel_vec = vel
 
             if car.rail_progress == 1:
                 car.rail = car.rail.next_rail
