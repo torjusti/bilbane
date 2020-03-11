@@ -1,8 +1,6 @@
 import math
 import numpy as np
 
-DEFAULT_YAW = -90
-
 
 class Rail:
     LANE_EDGE_DIST = .039
@@ -161,17 +159,11 @@ class Track:
             pos, vel, physics_phi = car.get_new_state(delta_time)
 
             if car.is_crashed and car.crash_time > 1:
-                car.pos_vec = np.zeros_like(car.pos_vec)
-                car.vel_vec = np.zeros_like(car.vel_vec)
-                car.phi = 0
-                car.rail = self.rails[0]
-                car.controller_input = 0
-                car.rail_progress = 0
-                car.is_crashed = False
-                car.crash_time = 0
+                car.reset()
                 continue
 
             rail = car.rail
+
             if car.is_crashed:
                 car.crash_time += delta_time
 
@@ -179,23 +171,18 @@ class Track:
                     crash_angle = rail.global_angle
                     car.pos_vec[0] += np.linalg.norm(car.vel_vec) * delta_time * math.cos(crash_angle)
                     car.pos_vec[1] += np.linalg.norm(car.vel_vec) * delta_time * math.sin(crash_angle)
-                    #car.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
+                    car.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
                 elif isinstance(rail, TurnRail):
                     crash_angle = rail.global_angle + rail.angle * car.rail_progress * rail.direction
-
                     car.pos_vec[0] += np.linalg.norm(car.vel_vec) * delta_time * math.cos(crash_angle)
                     car.pos_vec[1] += np.linalg.norm(car.vel_vec) * delta_time * math.sin(crash_angle)
-                    #car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
-
+                    car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
             else:
                 car.rail_progress += np.linalg.norm(vel) * delta_time / rail.get_length(car.lane)
                 car.rail_progress = min(car.rail_progress, 1)
                 if isinstance(rail, StraightRail):
                     car.pos_vec[0] = rail.global_x + math.cos(rail.global_angle) * car.rail_progress * rail.length
                     car.pos_vec[1] = rail.global_y + math.sin(rail.global_angle) * car.rail_progress * rail.length
-
-                    car.pos_vec[0] += math.cos(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                    car.pos_vec[1] += math.sin(rail.global_angle + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
                 elif isinstance(rail, TurnRail):
                     circle_x, circle_y, initial_angle = self._get_turn_circle(rail)
 
@@ -206,21 +193,24 @@ class Track:
 
                     car.phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                    car.pos_vec[0] += math.cos(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
-                    car.pos_vec[1] += math.sin(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                # Add lane offset to the car.
+                car.pos_vec[0] += math.cos(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
+                car.pos_vec[1] += math.sin(car.phi + math.pi / 2 * car.lane) * Rail.LANE_LANE_DIST / 2
 
                 car.vel_vec = vel
 
-                #phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
+                # phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
 
-                #car.pos_vec[0] = pos[0]
-                #car.pos_vec[1] = pos[1]
-                #car.phi = physics_phi[2]
+                # car.pos_vec[0] = pos[0]
+                # car.pos_vec[1] = pos[1]
+                # car.phi = physics_phi[2]
 
-                #car.pos_vec = pos
-                #car.vel_vec = vel
+                # car.pos_vec = pos
+                # car.vel_vec = vel
 
-            if car.rail_progress == 1:
-                car.rail = car.rail.next_rail
-                car.rail_progress = 0
+                if car.rail_progress == 1:
+                    car.rail = car.rail.next_rail
+                    car.rail_progress = 0
 
+                    if car.rail.next_rail == self.rails[0]:
+                        car.laps_completed += 1

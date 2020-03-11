@@ -39,7 +39,6 @@ class Car:
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
 
-    # TODO: Use returned angle.
     phi = None
 
     # Track section on which the car is situated.
@@ -48,9 +47,17 @@ class Car:
     # How far along the car is on the current rail.
     rail_progress = 0
 
+    # Number of laps completed by this car.
+    laps_completed = 0
+
+    # Timer used to stop crash animation.
+    crash_time = 0
+
     # Lane and track the car is on
     lane = None
     track = None
+
+    controller = None
 
     # Input from the controller. Will be converted to a voltage which drives the car
     controller_input = None # Value in interval [0,1]
@@ -77,12 +84,25 @@ class Car:
         self.mu_roll     = .01        # dimensionless
         self.mu_axle     = .1         # N
         self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .5        # W
+        self.max_power   = .5         # W
 
         self.pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
         self.acc_vec = np.zeros(3)
+
         self.phi = 0.0
+
+    def reset(self):
+        """ Reset the car state after a crash. """
+        self.is_crashed = False
+        self.pos_vec = np.zeros(3)
+        self.vel_vec = np.zeros(3)
+        self.rail = self.track.rails[0]
+        self.controller_input = 0
+        self.laps_completed = 0
+        self.rail_progress = 0
+        self.crash_time = 0
+        self.phi = 0
 
     def get_new_state(self, delta_time):
         """
@@ -98,6 +118,10 @@ class Car:
         new_pos_vec   = None
         new_angle_vec = None
         new_vel_vec   = None
+
+        old_speed = np.linalg.norm(self.vel_vec)
+        local_old_vel = np.asarray([old_speed, 0, 0])
+        self.vel_vec = self.rotate(local_old_vel, -self.phi)
 
         if not self.is_crashed:
             new_pos_vec   = self.get_new_pos(delta_time)
@@ -132,9 +156,7 @@ class Car:
         """
 
         new_acc_vec = self.get_total_force() / self.mass
-
         new_acc_vec_global = self.rotate(new_acc_vec, -self.phi)
-
         new_vel_vec_global = self.vel_vec + new_acc_vec_global*delta_time
 
         return new_vel_vec_global
@@ -223,20 +245,6 @@ class Car:
                           + drag_force
                           + lateral_pin_force )
 
-        """
-        print("Rolling resitance:", self.get_rolling_resistance(), "\n",
-              "Motor brake force:", self.get_motor_brake_force(), "\n",
-              "Axle friction    :", self.get_axle_friction(), "\n",
-              "Pin friction     :", self.get_pin_friction(), "\n",
-              "Lateral friction :", self.get_lateral_friction(), "\n",
-              "Magnet force     :", self.get_magnet_force(), "\n",
-              "Gravity force    :", self.get_gravity_force(), "\n",
-              "Normal force     :", self.get_normal_force(), "\n",
-              "Thrust force     :", self.get_thrust_force(), "\n",
-              "Drag force       :", self.get_drag_force(), "\n",
-              "Lateral pin force:", self.get_lateral_pin_force(), "\n",
-              "Total force:", total_force_vec, "\n")
-        """
         # Crash check
         if np.linalg.norm(self.get_centrifugal_force()) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True

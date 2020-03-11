@@ -1,16 +1,15 @@
 import arcade
+import math
 import numpy as np
-
-from model.car import Car
+import random
 from visualization.utils import create_arc_outline
+from model.car import Car
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
 SPRITE_SCALING_CAR = 0.25
-
 DEFAULT_YAW = -90
-
 
 class SlotCarGame(arcade.Window):
     space_pressed = False
@@ -60,9 +59,12 @@ class SlotCarGame(arcade.Window):
 
     def setup(self):
         self.setup_track()
+        sprites = random.sample(['ambulance', 'audi', 'black_viper', 'car', 'mini_truck',
+                                 'mini_van', 'police', 'taxi', 'truck'], len(self.track.cars))
+
         self.explosions_list = arcade.SpriteList()
-        for car in self.track.cars:
-            car_sprite = arcade.Sprite('visualization/images/car.png', SPRITE_SCALING_CAR)
+        for i, car in enumerate(self.track.cars):
+            car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png', SPRITE_SCALING_CAR)
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
             self.round_timer[car] = 0
@@ -122,15 +124,25 @@ class SlotCarGame(arcade.Window):
 
         return f"{minutes:02d}:{sec:02d}:{milli:0{int(decimals)}d}"
 
-    def update(self, delta_time):
+    def update(self, _):
+        # Instead of letting Arcade control the frame rate, we manually run at
+        # 60 fps in order to prevent the frame rate from affecting the physics.
+        delta_time = 1 / 60
+
         self.global_time += delta_time
 
-        steps_per_frame = 10
+        for car in self.track.cars:
+            # If this car is AI-controlled, update the input with the new state.
+            if car.controller and not car.is_crashed:
+                car.controller_input = car.controller.step()
+
+        steps_per_frame = 1
         for i in range(steps_per_frame):
             self.track.step(delta_time/steps_per_frame)
 
         for i, car_sprite in enumerate(self.car_sprites):
             car = self.track.cars[i]
+
             car_sprite.center_x, car_sprite.center_y = self.transform(car.pos_vec[0], car.pos_vec[1])
             car_sprite.angle = car.phi * 180 / np.pi + DEFAULT_YAW
 
