@@ -39,7 +39,6 @@ class Car:
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
 
-    # TODO: Use returned angle.
     phi = None
 
     # Track section on which the car is situated.
@@ -95,18 +94,21 @@ class Car:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
+        speed = np.linalg.norm(self.vel_vec)
+        local_vel_vec = np.asarray([speed, 0, 0])
+        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+
         new_pos_vec   = None
         new_angle_vec = None
         new_vel_vec   = None
 
         if not self.is_crashed:
-            new_pos_vec   = self.get_new_pos(delta_time)
-            new_vel_vec   = self.get_new_vel(delta_time)
-            new_angle_vec = self.get_new_angles(new_pos_vec, self.rail)
+            new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(delta_time)
+            new_angle_vec = self.get_new_angles(new_pos_vec)
 
         return new_pos_vec, new_vel_vec, new_angle_vec
 
-    def get_new_pos(self, delta_time):
+    def get_new_pos_and_vel(self, delta_time):
         """
         Purpose: Get new position of the car
         Args:
@@ -117,46 +119,12 @@ class Car:
 
         new_acc_vec = self.get_total_force() / self.mass
         new_acc_vec_global = self.rotate(new_acc_vec, -self.phi)
-        new_vel_vec_global = self.get_new_vel(delta_time)
-        new_pos_vec = self.pos_vec + new_vel_vec_global * delta_time + .5*new_acc_vec_global*(delta_time**2)
+        new_vel_vec_global = self.vel_vec + new_acc_vec_global * delta_time
+        new_pos_vec_global = self.pos_vec + self.vel_vec*delta_time + .5*new_acc_vec_global*(delta_time**2)
 
-        return new_pos_vec
+        return new_pos_vec_global, new_vel_vec_global
 
-    def get_new_vel(self, delta_time):
-        """
-        Purpose: Get new velocity of the car
-        Args:
-            delta_time -- time step in seconds
-        Returns:
-            new_vel_vec -- ndarray containing new car velocity (u, v, w)
-        """
-
-        new_acc_vec = self.get_total_force() / self.mass
-
-        new_acc_vec_global = self.rotate(new_acc_vec, -self.phi)
-
-        new_vel_vec_global = self.vel_vec + new_acc_vec_global*delta_time
-
-        return new_vel_vec_global
-
-    def get_new_angles(self, new_pos_vec, new_rail):
-        """
-        Purpose: Get new rotation of the car relative to global coordinate system
-        Args:
-            new_pos_vec -- ndarray containing new car position (x,y,z)
-            new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
-        Returns:
-            new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
-        """
-
-        if self.is_point_mass:
-            angle_vec = self.get_new_point_angles(new_pos_vec, new_rail)
-        else:
-            angle_vec = self.get_new_body_angles()
-
-        return angle_vec
-
-    def get_new_point_angles(self, new_pos_vec, new_rail):
+    def get_new_angles(self, new_pos_vec):
         """
         Purpose: Get new rotation of the car relative to global coordinate system
         Assumptions:
@@ -170,22 +138,18 @@ class Car:
         """
 
         # If on a turn
-        if isinstance(new_rail, model.TurnRail):
-            rail_center_vec = new_rail.get_rail_center()
+        if isinstance(self.rail, model.TurnRail):
+            rail_center_vec = self.rail.get_rail_center()
             radial_vec = self.pos_vec - rail_center_vec
-            rotation_matrix = np.asarray([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) * self.rail.direction
-            tangent_vec = np.dot(rotation_matrix, radial_vec)
+            tangent_vec = self.rotate(radial_vec, -self.rail.direction * np.pi / 2)
             phi = np.arctan2(tangent_vec[1], tangent_vec[0])
 
         # Else we are on a straight
         else:
-            phi = new_rail.global_angle
+            phi = self.rail.global_angle
 
         new_angle_vec = np.asarray([0, 0, phi])
         return new_angle_vec
-
-    def get_new_body_angles(self):
-        return 0
 
     # ---------------------------------------------------------------------------
     # Calculate forces
@@ -209,7 +173,7 @@ class Car:
         drag_force         = self.get_drag_force()
         lateral_pin_force  = self.get_lateral_pin_force()
 
-        #print(motor_brake_force)
+        print(lateral_friction)
 
         total_force_vec = ( rolling_resistance
                           + motor_brake_force
@@ -251,8 +215,6 @@ class Car:
             f1_vec -- ndarray containing the components of the rolling resistance acting on the car (in x-, y- and z-direction)
         """
 
-        # TODO: Make valid for skidding car
-
         n_vec  = self.get_normal_force()
         N      = np.linalg.norm(n_vec)
         track_friction = self.mu_roll*N
@@ -270,7 +232,7 @@ class Car:
         Formula: Braking torque proportional to speed
         Return:
             mbrake_vec -- ndarray containing the components of the motor brake force acting on the car (in x-, y- and z-direction)
-        # TODO: Update according to this: https://www.ormec.com/Portals/ormec/Library/Documents/Controllers/Orion/TechNotes/tn038.pdf
+        Source https://www.ormec.com/Portals/ormec/Library/Documents/Controllers/Orion/TechNotes/tn038.pdf
         """
 
         mbrake_vec = np.asarray([-self.motor_coeff*np.linalg.norm(self.vel_vec), 0, 0])
@@ -318,23 +280,12 @@ class Car:
     def get_lateral_friction(self):
         """
         Purpose: Calculate friction force acting on tires from track
-        Formula: F_tire = min(mu_tire * N, m * v^2 / r),  N = normal force
+        Formula: This force is unphysical for a point mass, and is hence set to zero
         Returns:
             f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
         """
 
         f3_vec = np.zeros(3)
-
-        # TODO: Try to find a more meaningful expression for this force
-
-        if isinstance(self.rail, model.TurnRail):
-            n_vec     = self.get_normal_force()
-            N         = np.linalg.norm(n_vec)
-            centripetal_force = np.linalg.norm(self.get_centrifugal_force())
-            f3_vec[1] = self.rail.direction * np.minimum(self.mu_tire * N, centripetal_force) # Friction cannot exceed centripetal force
-
-        if np.linalg.norm(self.vel_vec) < TOL:
-            return np.zeros_like(f3_vec)
 
         return f3_vec
 
@@ -422,7 +373,6 @@ class Car:
         l_vec = np.zeros(3)
 
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
-            #cent_vec = self.get_centrifugal_force()
             cent_vec = self.get_centrifugal_force()
             l_vec_magnitude = np.linalg.norm(cent_vec) - np.linalg.norm(self.get_lateral_friction())
             l_vec[1] = self.rail.direction * l_vec_magnitude
@@ -433,24 +383,20 @@ class Car:
         """
         Purpose: Calculate centrifugal force experienced by the car
         Formula: F = ma = mv^2/r
-        In principle one should use the tangential velocity only, but calculating the tangential component is in
-        practice not any more accurate simply assuming that the velocity is solely tangential
-        (presumably because the angles are not exact).
         Returns:
             cent_vec -- ndarray containing the components of the centrifugal force experienced by the car (in x-, y- and z-direction)
         """
 
         cent_vec = np.zeros(3)
 
+        local_vel_vec = self.rotate(self.vel_vec, self.phi)
+        tangential_vel = local_vel_vec[0]
+
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
-            cent_magnitude = np.dot(self.vel_vec, self.vel_vec) * self.mass / self.rail.get_lane_radius(self.lane)
+            cent_magnitude = (tangential_vel**2) * self.mass / self.rail.get_lane_radius(self.lane)
             cent_vec = self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
-
-    def get_car_track_angle(self):
-        # TODO: Implement for car that is not a point mass
-        return 0
 
     def rotate(self, vector, angle):
         rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
