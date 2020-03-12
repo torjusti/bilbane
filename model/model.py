@@ -151,4 +151,4 @@ class Track:
 
     def step(self, delta_time):
         for car in self.cars:
-            car.get_new_state_track_locked(delta_time)
+            car.update_state(delta_time)

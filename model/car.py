@@ -55,7 +55,7 @@ class Car:
     # Input from the controller. Will be converted to a voltage which drives the car
     controller_input = None # Value in interval [0,1]
 
-    def __init__(self, lane, track, key_control=False, track_locked=False):
+    def __init__(self, lane, track, key_control=False, track_locked=True):
         self.lane  = lane
         self.track = track
         self.rail = track.rails[0]
@@ -86,8 +86,13 @@ class Car:
         self.phi = 0.0
         self.track_locked = track_locked
 
+    def update_state(self, delta_time):
+        new_pos_vec, new_vel_vec, new_angle_vec = self.get_new_state(delta_time)
+        self.pos_vec = new_pos_vec
+        self.vel_vec = new_vel_vec
+        self.angle_vec = new_angle_vec
 
-    def get_new_state(self, delta_time):
+    def get_physics_state(self, delta_time):
         """
         Purpose: Get new state of the car
         Args:
@@ -97,10 +102,10 @@ class Car:
             new_vel_vec -- ndarray containing new car velocity (u, v, w)
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
-
-        speed = np.linalg.norm(self.vel_vec)
-        local_vel_vec = np.asarray([speed, 0, 0])
-        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        if self.track_locked:
+            speed = np.linalg.norm(self.vel_vec)
+            local_vel_vec = np.asarray([speed, 0, 0])
+            self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         new_pos_vec   = None
         new_angle_vec = None
@@ -110,23 +115,23 @@ class Car:
             new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(delta_time)
             new_angle_vec = self.get_new_angles(new_pos_vec)
 
-        # self.get_new_state_track_locked(delta_time)
-
         return new_pos_vec, new_vel_vec, new_angle_vec
 
-    def get_new_state_track_locked(self, delta_time):
-        pos, vel, physics_phi = self.get_new_state(delta_time)
+    def get_new_state(self, delta_time):
+        pos, vel, physics_phi = self.get_physics_state(delta_time)
+
+        new_pos_vec, new_vel_vec, new_angle_vec = self.pos_vec, self.vel_vec, np.zeros(3)
 
         if self.is_crashed and self.crash_time > 1:
-            self.pos_vec = np.zeros_like(self.pos_vec)
-            self.vel_vec = np.zeros_like(self.vel_vec)
+            new_pos_vec = np.zeros_like(self.pos_vec)
+            new_vel_vec = np.zeros_like(self.vel_vec)
             self.phi = 0
             self.rail = self.track.rails[0]
             self.controller_input = 0
             self.rail_progress = 0
             self.is_crashed = False
             self.crash_time = 0
-            return
+            return new_pos_vec, new_vel_vec, new_angle_vec
 
         rail = self.rail
         if self.is_crashed:
@@ -134,53 +139,49 @@ class Car:
 
             if isinstance(rail, model.StraightRail):
                 crash_angle = rail.global_angle
-                self.pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
-                self.pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
+                new_pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
+                new_pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
                 # car.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
             elif isinstance(rail, model.TurnRail):
                 crash_angle = rail.global_angle + rail.angle * self.rail_progress * rail.direction
 
-                self.pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
-                self.pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
+                new_pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
+                new_pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
                 # car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
 
         else:
             self.rail_progress += np.linalg.norm(vel) * delta_time / rail.get_length(self.lane)
             self.rail_progress = min(self.rail_progress, 1)
             if isinstance(rail, model.StraightRail):
-                self.pos_vec[0] = rail.global_x + np.cos(rail.global_angle) * self.rail_progress * rail.length
-                self.pos_vec[1] = rail.global_y + np.sin(rail.global_angle) * self.rail_progress * rail.length
+                new_pos_vec[0] = rail.global_x + np.cos(rail.global_angle) * self.rail_progress * rail.length
+                new_pos_vec[1] = rail.global_y + np.sin(rail.global_angle) * self.rail_progress * rail.length
 
-                self.pos_vec[0] += np.cos(rail.global_angle + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
-                self.pos_vec[1] += np.sin(rail.global_angle + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+                new_pos_vec[0] += np.cos(rail.global_angle + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+                new_pos_vec[1] += np.sin(rail.global_angle + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
             elif isinstance(rail, model.TurnRail):
                 circle_x, circle_y, initial_angle = self.track._get_turn_circle(rail)
 
                 angle = initial_angle + rail.angle * self.rail_progress * rail.direction
 
-                self.pos_vec[0] = circle_x + rail.radius * np.cos(angle)
-                self.pos_vec[1] = circle_y + rail.radius * np.sin(angle)
+                new_pos_vec[0] = circle_x + rail.radius * np.cos(angle)
+                new_pos_vec[1] = circle_y + rail.radius * np.sin(angle)
 
                 self.phi = rail.global_angle + rail.angle * self.rail_progress * rail.direction
 
-                self.pos_vec[0] += np.cos(self.phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
-                self.pos_vec[1] += np.sin(self.phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+                new_pos_vec[0] += np.cos(self.phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+                new_pos_vec[1] += np.sin(self.phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
 
-            self.vel_vec = vel
+            if not self.track_locked:
+                new_pos_vec = pos
+                new_angle_vec[2] = physics_phi[2]
 
-            # phi = rail.global_angle + rail.angle * car.rail_progress * rail.direction
-
-            # car.pos_vec[0] = pos[0]
-            # car.pos_vec[1] = pos[1]
-            # car.phi = physics_phi[2]
-
-            # car.pos_vec = pos
-            # car.vel_vec = vel
+            new_vel_vec = vel
 
         if self.rail_progress == 1:
             self.rail = self.rail.next_rail
             self.rail_progress = 0
 
+        return new_pos_vec, new_vel_vec, new_angle_vec
 
     def get_new_pos_and_vel(self, delta_time):
         """
