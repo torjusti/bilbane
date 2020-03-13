@@ -55,7 +55,7 @@ class Car:
     # Input from the controller. Will be converted to a voltage which drives the car
     controller_input = None # Value in interval [0,1]
 
-    def __init__(self, lane, track, key_control=False, track_locked=True):
+    def __init__(self, lane, track, key_control=False, track_locked=False):
         self.lane  = lane
         self.track = track
         self.rail = track.rails[0]
@@ -77,7 +77,7 @@ class Car:
         self.mu_roll     = .01        # dimensionless
         self.mu_axle     = .1         # N
         self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .5        # W
+        self.max_power   = .5         # W
 
         self.pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
@@ -118,11 +118,11 @@ class Car:
         return new_pos_vec, new_vel_vec, new_angle_vec
 
     def get_new_state(self, delta_time):
-        pos, vel, physics_phi = self.get_physics_state(delta_time)
+        pos, vel, angles = self.get_physics_state(delta_time)
 
         new_pos_vec, new_vel_vec, new_angle_vec = self.pos_vec, self.vel_vec, np.zeros(3)
 
-        if self.is_crashed and self.crash_time > 1:
+        if self.is_crashed and self.crash_time > 1: # Car should be reset.
             new_pos_vec = np.zeros_like(self.pos_vec)
             new_vel_vec = np.zeros_like(self.vel_vec)
             self.phi = 0
@@ -134,7 +134,7 @@ class Car:
             return new_pos_vec, new_vel_vec, new_angle_vec
 
         rail = self.rail
-        if self.is_crashed:
+        if self.is_crashed: # Car has crashed, but should not be reset yet.
             self.crash_time += delta_time
 
             if isinstance(rail, model.StraightRail):
@@ -149,7 +149,7 @@ class Car:
                 new_pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
                 # car.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
 
-        else:
+        else: # Car has not crashed.
             self.rail_progress += np.linalg.norm(vel) * delta_time / rail.get_length(self.lane)
             self.rail_progress = min(self.rail_progress, 1)
             if isinstance(rail, model.StraightRail):
@@ -173,9 +173,9 @@ class Car:
 
             if not self.track_locked:
                 new_pos_vec = pos
-                new_angle_vec[2] = physics_phi[2]
 
             new_vel_vec = vel
+            new_angle_vec[2] = angles[2]
 
         if self.rail_progress == 1:
             self.rail = self.rail.next_rail
