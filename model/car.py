@@ -119,8 +119,8 @@ class Car:
         """
 
         y = np.concatenate((self.pos_vec, self.vel_vec), axis=None)
-        new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
-        #new_y = self.forward_euler_step(y, self.controller_input, delta_time)
+        #new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
+        new_y = self.forward_euler_step(y, self.controller_input, delta_time)
 
         return new_y[:3], new_y[3:]
 
@@ -167,6 +167,13 @@ class Car:
 
         new_angle_vec = np.asarray([0, 0, phi])
         return new_angle_vec
+
+    def get_rail_progress(self):
+        alpha = self.phi - self.rail.global_angle
+        rail_progress = alpha * self.rail.get_lane_radius(self.lane)
+        if rail_progress > 1:
+            rail_progress = 1
+        return rail_progress
 
     # ---------------------------------------------------------------------------
     # Calculate forces
