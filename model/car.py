@@ -104,10 +104,10 @@ class Car:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
-        if self.track_locked:
-            speed = np.linalg.norm(self.vel_vec)
-            local_vel_vec = np.asarray([speed, 0, 0])
-            self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        #if self.track_locked:
+        speed = np.linalg.norm(self.vel_vec)
+        local_vel_vec = np.asarray([speed, 0, 0])
+        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         new_pos_vec   = None
         new_angle_vec = None
@@ -125,7 +125,7 @@ class Car:
         new_pos_vec, new_vel_vec, new_angle_vec = self.pos_vec, self.vel_vec, np.zeros(3)
 
         if self.is_crashed and self.crash_time > 1: # Car should be reset.
-            new_pos_vec = np.zeros_like(self.pos_vec)
+            new_pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
             new_vel_vec = np.zeros_like(self.vel_vec)
             self.phi = 0
             self.rail = self.track.rails[0]
