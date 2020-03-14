@@ -104,10 +104,10 @@ class Car:
             new_angle_vec -- ndarray containing new rotation of car relative to global coordinate system (roll, pitch, yaw)
         """
 
-        if self.track_locked:
-            speed = np.linalg.norm(self.vel_vec)
-            local_vel_vec = np.asarray([speed, 0, 0])
-            self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        #if self.track_locked:
+        speed = np.linalg.norm(self.vel_vec)
+        local_vel_vec = np.asarray([speed, 0, 0])
+        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         new_pos_vec   = None
         new_angle_vec = None
@@ -125,7 +125,7 @@ class Car:
         new_pos_vec, new_vel_vec, new_angle_vec = self.pos_vec, self.vel_vec, np.zeros(3)
 
         if self.is_crashed and self.crash_time > 1: # Car should be reset.
-            new_pos_vec = np.zeros_like(self.pos_vec)
+            new_pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
             new_vel_vec = np.zeros_like(self.vel_vec)
             self.phi = 0
             self.rail = self.track.rails[0]
@@ -195,8 +195,8 @@ class Car:
         """
 
         y = np.concatenate((self.pos_vec, self.vel_vec), axis=None)
-        #new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
-        new_y = self.forward_euler_step(y, self.controller_input, delta_time)
+        new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
+        #new_y = self.forward_euler_step(y, self.controller_input, delta_time)
 
         return new_y[:3], new_y[3:]
 
@@ -286,20 +286,20 @@ class Car:
                           + motor_brake_force
                           + drag_force )
 
-        """
-        print("Rolling resitance:", self.get_rolling_resistance(), "\n",
-              "Motor brake force:", self.get_motor_brake_force(), "\n",
-              "Axle friction    :", self.get_axle_friction(), "\n",
-              "Pin friction     :", self.get_pin_friction(), "\n",
-              "Lateral friction :", self.get_lateral_friction(), "\n",
-              "Magnet force     :", self.get_magnet_force(), "\n",
-              "Gravity force    :", self.get_gravity_force(), "\n",
-              "Normal force     :", self.get_normal_force(), "\n",
-              "Thrust force     :", self.get_thrust_force(), "\n",
-              "Drag force       :", self.get_drag_force(), "\n",
-              "Lateral pin force:", self.get_lateral_pin_force(), "\n",
-              "Total force:", total_force_vec, "\n")
-        """
+        if (c_in != 0):
+            print("Rolling resitance:", self.get_rolling_resistance(pos, vel), "\n",
+                  "Motor brake force:", self.get_motor_brake_force(pos, vel, c_in), "\n",
+                  "Axle friction    :", self.get_axle_friction(pos, vel), "\n",
+                  "Pin friction     :", self.get_pin_friction(pos, vel), "\n",
+                  "Lateral friction :", self.get_lateral_friction(pos, vel), "\n",
+                  "Magnet force     :", self.get_magnet_force(pos, vel), "\n",
+                  "Gravity force    :", self.get_gravity_force(pos, vel), "\n",
+                  "Normal force     :", self.get_normal_force(pos, vel), "\n",
+                  "Thrust force     :", self.get_thrust_force(pos, vel, c_in), "\n",
+                  "Drag force       :", self.get_drag_force(pos, vel), "\n",
+                  "Lateral pin force:", self.get_lateral_pin_force(pos, vel), "\n",
+                  "Total force:", total_force_vec, "\n")
+
         # Crash check
         if np.linalg.norm(self.get_centrifugal_force(pos, vel)) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
