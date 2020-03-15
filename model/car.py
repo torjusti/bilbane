@@ -1,6 +1,6 @@
 import numpy as np
 from model import model
-from model.rk4 import rk4_step
+#from model.rk4 import rk4_step
 
 G_ACC = 9.81
 RHO   = 1.2  # density of air
@@ -194,16 +194,16 @@ class Car:
         old_c_in = self.controller_input
 
         # Make sure velocity is tangential
-        speed = np.linalg.norm(old_vel_vec)
-        print("Local:", self.rotate(old_vel_vec, old_phi))
-        local_old_vel_vec = np.asarray([speed, 0, 0])
-        old_rot_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
+        #speed = np.linalg.norm(old_vel_vec)
+        #print("Local:", self.rotate(old_vel_vec, old_phi))
+        #local_old_vel_vec = np.asarray([speed, 0, 0])
+        #old_rot_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
         #print("Original:", old_vel_vec)
         #print("Rotated:", old_rot_vel_vec)
 
         # Calculate new state
-        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_rot_vel_vec, old_phi, old_c_in, delta_time)
-        new_phi = self.get_phi(new_pos_vec)
+        new_pos_vec, new_vel_vec, new_phi = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
+        #new_phi = self.get_phi(old_pos_vec, new_pos_vec)
 
         return new_pos_vec, new_vel_vec, new_phi
 
@@ -217,12 +217,12 @@ class Car:
         """
 
         old_y = np.concatenate((old_pos_vec, old_vel_vec), axis=None)
-        new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
-        #new_y = self.forward_euler_step(old_y, old_c_in, delta_time)
+        #new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
+        new_y, new_phi = self.forward_euler_step(old_y, old_phi, old_c_in, delta_time)
 
-        return new_y[:3], new_y[3:]
+        return new_y[:3], new_y[3:], new_phi
 
-    def get_phi(self, new_pos_vec):
+    def get_phi(self, old_pos_vec, new_pos_vec):
         """
         Purpose: Get new rotation of the car relative to global coordinate system
         Assumptions:
@@ -235,8 +235,11 @@ class Car:
             new_phi -- new yaw
         """
 
-        # TODO: Check if assumes car always on track
+        pos_diff_vec = new_pos_vec - old_pos_vec
+        phi = np.arctan2(pos_diff_vec[1], pos_diff_vec[0])
 
+        # TODO: Check if assumes car always on track
+        """
         # If on a turn
         if isinstance(self.rail, model.TurnRail):
             rail_center_vec = self.rail.get_rail_center()
@@ -247,28 +250,44 @@ class Car:
         # Else we are on a straight
         else:
             phi = self.rail.global_angle
-
+        """
         return phi
 
-    def forward_euler_step(self, old_y, old_c_in, delta_time):
-        old_pos_vec = old_y[:3]
-        old_vel_vec = old_y[3:]
+    def forward_euler_step(self, old_y, old_phi, old_c_in, delta_time):
+        old_pos_vec_global = old_y[:3]
+        old_vel_vec_global = old_y[3:]
+        old_speed = np.linalg.norm(old_vel_vec_global)
+        old_vel_vec_local = np.asarray([old_speed, 0, 0])
+        old_pos_vec_local = np.zeros(3)
 
-        phi = self.get_phi(old_pos_vec)
+        new_acc_vec_local = self.get_total_force(old_pos_vec_global, old_vel_vec_global, old_phi, old_c_in) / self.mass
+        new_vel_vec_local = old_vel_vec_local + new_acc_vec_local * delta_time
+        new_pos_vec_local = old_pos_vec_local + old_vel_vec_local * delta_time + .5 * new_acc_vec_local * (delta_time ** 2)
 
-        new_acc_vec_local = self.get_total_force(old_pos_vec, old_vel_vec, phi, old_c_in) / self.mass
-        new_acc_vec_global = self.rotate(new_acc_vec_local, -phi)
-        new_vel_vec_global = old_vel_vec + new_acc_vec_global * delta_time
-        new_pos_vec_global = old_pos_vec + old_vel_vec * delta_time + .5 * new_acc_vec_global * (delta_time ** 2)
+        local_pos_diff_vec = new_pos_vec_local - old_pos_vec_local
 
-        return np.concatenate((new_pos_vec_global, new_vel_vec_global), axis=None)
+        new_phi = old_phi + np.arctan2(new_vel_vec_local[1], new_vel_vec_local[0])
+
+        global_pos_diff_vec = self.rotate(local_pos_diff_vec, -new_phi)
+        new_pos_vec_global = old_pos_vec_global + global_pos_diff_vec
+        new_vel_vec_global = self.rotate(new_vel_vec_local, -new_phi)
+
+        return np.concatenate((new_pos_vec_global, new_vel_vec_global), axis=None), new_phi
+
+    def rk4_step(self, old_y, old_phi, c_in, dt, fy, fv):
+        k1 = np.concatenate((fy(y_n), fv(y_n, c_in)), axis=None)
+        k2 = np.concatenate((fy(y_n + (dt / 2) * k1), fv(y_n + (dt / 2) * k1, c_in)), axis=None)
+        k3 = np.concatenate((fy(y_n + (dt / 2) * k2), fv(y_n + (dt / 2) * k2, c_in)), axis=None)
+        k4 = np.concatenate((fy(y_n + dt * k3), fv(y_n + dt * k3, c_in)), axis=None)
+
+        return y_n + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
     def dxdt(self, y):
         return y[3:]
 
     def dvdt(self, y, c_in):
         # TODO: Do not use old_phi here
-        phi = self.get_phi(y[:3])
+        phi = self.get_phi(y[:3], np.zeros(3)) # TODO: 2nd argument is placeholder
         local_acc_vec = self.get_total_force(y[:3], y[3:], phi, c_in) / self.mass
         global_acc_vec = self.rotate(local_acc_vec, -phi)
         return global_acc_vec
