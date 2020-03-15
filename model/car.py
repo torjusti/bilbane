@@ -88,10 +88,23 @@ class Car:
         self.track_locked = track_locked
 
     def update_state(self, delta_time):
+        if self.controller_input != 0:
+            print("\nDelta_time:", delta_time, "\n")
+            print("Old position:", self.pos_vec)
+            print("Old velocity:", self.vel_vec)
+            print("Old angle:", self.angle_vec)
+            print("Old phi:", self.phi)
+            print("Old rail progress:", self.rail_progress)
         new_pos_vec, new_vel_vec, new_angle_vec = self.get_new_state(delta_time)
         self.pos_vec = new_pos_vec
         self.vel_vec = new_vel_vec
         self.angle_vec = new_angle_vec
+        if self.controller_input != 0:
+            print("New position:", self.pos_vec)
+            print("New velocity:", self.vel_vec)
+            print("New angle:", self.angle_vec)
+            print("New phi:", self.phi)
+            print("New rail progress:", self.rail_progress)
 
     def get_physics_state(self, delta_time):
         """
@@ -195,8 +208,8 @@ class Car:
         """
 
         y = np.concatenate((self.pos_vec, self.vel_vec), axis=None)
-        new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
-        #new_y = self.forward_euler_step(y, self.controller_input, delta_time)
+        #new_y = rk4_step(y, self.controller_input, delta_time, self.dxdt, self.dvdt)
+        new_y = self.forward_euler_step(y, self.controller_input, delta_time)
 
         return new_y[:3], new_y[3:]
 
@@ -315,7 +328,7 @@ class Car:
         """
 
         n_vec  = self.get_normal_force(pos, vel)
-        N      = np.linalg.norm(vel)
+        N      = np.linalg.norm(n_vec)
         track_friction = self.mu_roll*N
 
         f1_vec = np.asarray([-track_friction, 0, 0])
