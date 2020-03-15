@@ -80,12 +80,14 @@ class Car:
         self.max_power   = .5         # W
 
     def update_state(self, delta_time):
+        """
         if self.controller_input != 0:
             print("\nDelta_time:", delta_time, "\n")
             print("Old position:", self.pos_vec)
             print("Old velocity:", self.vel_vec)
             print("Old phi:", self.phi)
             print("Old rail progress:", self.rail_progress)
+        """
         # Crash check
         if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
@@ -97,12 +99,13 @@ class Car:
             self.crash_update(delta_time)
         else:
             self.physics_update(delta_time)
-
+        """
         if self.controller_input != 0:
             print("New position:", self.pos_vec)
             print("New velocity:", self.vel_vec)
             print("New phi:", self.phi)
             print("New rail progress:", self.rail_progress)
+        """
 
     def reset(self):
         self.is_crashed = False
@@ -139,11 +142,6 @@ class Car:
         # Update rail progress based on new velocity from physics calculations
         self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, delta_time)
 
-        # Move to next rail if reached end of current rail
-        if self.rail_progress == 1:
-            self.rail = self.rail.next_rail
-            self.rail_progress = 0
-
         # Overwrite new_pos_vec and new_phi if locked to track
         if self.track_locked:
             rail = self.rail
@@ -166,6 +164,12 @@ class Car:
 
                 new_pos_vec[0] += np.cos(new_phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
                 new_pos_vec[1] += np.sin(new_phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
+        #new_phi = self.rail.global_angle + self.rail.angle * self.rail_progress * self.rail.direction
+
+        # Move to next rail if reached end of current rail
+        if self.rail_progress == 1:
+            self.rail = self.rail.next_rail
+            self.rail_progress = 0
 
         # Update state
         self.pos_vec = new_pos_vec
@@ -191,11 +195,14 @@ class Car:
 
         # Make sure velocity is tangential
         speed = np.linalg.norm(old_vel_vec)
+        print("Local:", self.rotate(old_vel_vec, old_phi))
         local_old_vel_vec = np.asarray([speed, 0, 0])
-        old_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
+        old_rot_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
+        #print("Original:", old_vel_vec)
+        #print("Rotated:", old_rot_vel_vec)
 
         # Calculate new state
-        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
+        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_rot_vel_vec, old_phi, old_c_in, delta_time)
         new_phi = self.get_phi(new_pos_vec)
 
         return new_pos_vec, new_vel_vec, new_phi
@@ -210,8 +217,8 @@ class Car:
         """
 
         old_y = np.concatenate((old_pos_vec, old_vel_vec), axis=None)
-        #new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
-        new_y = self.forward_euler_step(old_y, old_c_in, delta_time)
+        new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
+        #new_y = self.forward_euler_step(old_y, old_c_in, delta_time)
 
         return new_y[:3], new_y[3:]
 
@@ -324,7 +331,7 @@ class Car:
                           + rolling_resistance
                           + motor_brake_force
                           + drag_force )
-
+        """
         if (c_in != 0):
             print("Rolling resitance:", self.get_rolling_resistance(pos, vel), "\n",
                   "Motor brake force:", self.get_motor_brake_force(pos, vel, c_in), "\n",
@@ -338,7 +345,7 @@ class Car:
                   "Drag force       :", self.get_drag_force(pos, vel), "\n",
                   "Lateral pin force:", self.get_lateral_pin_force(pos, vel, phi), "\n",
                   "Total force:", total_force_vec, "\n")
-
+        """
 
         return total_force_vec
 
