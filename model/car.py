@@ -80,6 +80,12 @@ class Car:
         self.max_power   = .5         # W
 
     def update_state(self, delta_time):
+        if self.controller_input != 0:
+            print("\nDelta_time:", delta_time, "\n")
+            print("Old position:", self.pos_vec)
+            print("Old velocity:", self.vel_vec)
+            print("Old phi:", self.phi)
+            print("Old rail progress:", self.rail_progress)
         # Crash check
         if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
@@ -91,6 +97,12 @@ class Car:
             self.crash_update(delta_time)
         else:
             self.physics_update(delta_time)
+
+        if self.controller_input != 0:
+            print("New position:", self.pos_vec)
+            print("New velocity:", self.vel_vec)
+            print("New phi:", self.phi)
+            print("New rail progress:", self.rail_progress)
 
     def reset(self):
         self.is_crashed = False
