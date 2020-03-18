@@ -194,10 +194,10 @@ class Car:
         old_c_in = self.controller_input
 
         # Make sure velocity is tangential
-        #speed = np.linalg.norm(old_vel_vec)
+        speed = np.linalg.norm(old_vel_vec)
         #print("Local:", self.rotate(old_vel_vec, old_phi))
-        #local_old_vel_vec = np.asarray([speed, 0, 0])
-        #old_rot_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
+        local_old_vel_vec = np.asarray([speed, 0, 0])
+        old_rot_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
         #print("Original:", old_vel_vec)
         #print("Rotated:", old_rot_vel_vec)
 
@@ -221,7 +221,8 @@ class Car:
         old_pos_vec_local = np.zeros(3)
         old_y_local = np.concatenate((old_pos_vec_local, old_vel_vec_local), axis=None)
 
-        new_y_local = self.rk4_step(old_y_local, old_c_in, delta_time, self.dxdt, self.dvdt)
+        new_y_local = self.midpoint_step(old_y_local, old_c_in, delta_time)
+        #new_y_local = self.rk4_step(old_y_local, old_c_in, delta_time, self.dxdt, self.dvdt)
         #new_y_local = self.forward_euler_step(old_y_local, old_c_in, delta_time)
 
         new_pos_vec_local = new_y_local[:3]
@@ -272,6 +273,20 @@ class Car:
 
         return np.concatenate((new_pos_vec_local, new_vel_vec_local), axis=None)
 
+    def midpoint_step(self, old_y_local, old_c_in, delta_time):
+        old_pos_local = old_y_local[:3]
+        print(old_pos_local)
+        old_vel_local = old_y_local[3:]
+
+        preliminary_vel = old_vel_local + 0.5*delta_time*self.dvdt(old_y_local, old_c_in)
+        preliminary_pos = old_pos_local + 0.5*delta_time*self.dxdt(old_y_local)
+        preliminary_y = np.concatenate((preliminary_pos, preliminary_vel), axis=None)
+
+        new_vel_local = preliminary_vel + delta_time*self.dvdt(preliminary_y, old_c_in)
+        new_pos_local = preliminary_pos + delta_time*self.dxdt(preliminary_y)
+
+        return np.concatenate((new_pos_local, new_vel_local), axis=None)
+
     def rk4_step(self, old_y_local, c_in, dt, fy, fv):
         k1 = np.concatenate((fy(old_y_local), fv(old_y_local, c_in)), axis=None)
         k2 = np.concatenate((fy(old_y_local + (dt / 2) * k1), fv(old_y_local + (dt / 2) * k1, c_in)), axis=None)
@@ -279,6 +294,8 @@ class Car:
         k4 = np.concatenate((fy(old_y_local + dt * k3), fv(old_y_local + dt * k3, c_in)), axis=None)
 
         new_y_local = old_y_local + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+
+        print(new_y_local[3:])
 
         return new_y_local
 
