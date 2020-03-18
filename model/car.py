@@ -93,11 +93,11 @@ class Car:
         if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
             self.is_crashed = True
 
-
-        #if self.track_locked:
-        speed = np.linalg.norm(self.vel_vec)
-        local_vel_vec = np.asarray([speed, 0, 0])
-        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        # Make velocity tangential to track
+        if self.track_locked:
+            speed = np.linalg.norm(self.vel_vec)
+            local_vel_vec = np.asarray([speed, 0, 0])
+            self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         # Update state given result of crash check
         if self.is_crashed and self.crash_time > 1:
@@ -200,16 +200,8 @@ class Car:
         old_phi = self.phi
         old_c_in = self.controller_input
 
-        # Make sure velocity is tangential
-        speed = np.linalg.norm(old_vel_vec)
-        print("Local:", self.rotate(old_vel_vec, old_phi))
-        local_old_vel_vec = np.asarray([speed, 0, 0])
-        old_rot_vel_vec = self.rotate(local_old_vel_vec, -old_phi)
-        #print("Original:", old_vel_vec)
-        #print("Rotated:", old_rot_vel_vec)
-
         # Calculate new state
-        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_rot_vel_vec, old_phi, old_c_in, delta_time)
+        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
         new_phi = self.get_phi(new_pos_vec)
 
         return new_pos_vec, new_vel_vec, new_phi
@@ -224,8 +216,8 @@ class Car:
         """
 
         old_y = np.concatenate((old_pos_vec, old_vel_vec), axis=None)
-        new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
-        #new_y = self.forward_euler_step(old_y, old_c_in, delta_time)
+        #new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
+        new_y = self.forward_euler_step(old_y, old_c_in, delta_time)
 
         return new_y[:3], new_y[3:]
 
