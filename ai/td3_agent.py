@@ -10,7 +10,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class TD3Agent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=0.002, actor_lr=1e-3, critic_lr=1e-3):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=2e-3, actor_lr=1e-3, critic_lr=1e-3):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
@@ -18,6 +18,8 @@ class TD3Agent(ActorCriticAgent):
         self.actor_target = copy.deepcopy(self.actor)
         self.Q1_target = copy.deepcopy(self.Q1)
         self.Q2_target = copy.deepcopy(self.Q2)
+
+        # TODO: Should we initialize weights to values near 0?
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.Q1_optimizer = torch.optim.Adam(self.Q1.parameters(), lr=critic_lr)

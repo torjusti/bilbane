@@ -7,6 +7,7 @@ from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
 from ai.ddpg_agent import DDPGAgent
 from ai.td3_agent import TD3Agent
+from ai.sac_agent import SACAgent
 from model import model
 
 # Size of time step used when training.
@@ -18,8 +19,8 @@ RAIL_LOOKAHEAD = 5
 # Whether or not the initial car position should be randomized.
 RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
-LOAD_MODEL = True
-# Algorithm to use for training. Either `ddpg` or `td3`.
+LOAD_MODEL = False
+# Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'ddpg'
 # Batch size to use when training.
 BATCH_SIZE = 128
@@ -79,7 +80,7 @@ class SlotCarEnv:
         """ Get an action from the agent for one time-step of the simulation. """
         self.car.controller_input = action
 
-        # TODO: The actual game runs at a much finer granularity.
+        # TODO: The actual game can run at a much finer granularity.
         self.track.step(DELTA_TIME)
 
         if self.car.is_crashed:
@@ -131,9 +132,13 @@ def train(track, car):
     noise = OrnsteinUhlenbeckNoise(1, dt=0.1)
 
     if AGENT_TYPE == 'ddpg':
-        agent = DDPGAgent(env.state.shape[0], 1)
+        agent = DDPGAgent
     elif AGENT_TYPE == 'td3':
-        agent = TD3Agent(env.state.shape[0], 1)
+        agent = TD3Agent
+    elif AGENT_TYPE == 'sac':
+        agent = SACAgent
+
+    agent = agent(env.state.shape[0], 1)
 
     if os.path.exists('actor.pth') and LOAD_MODEL:
         agent.load_model('actor.pth')
@@ -147,7 +152,13 @@ def train(track, car):
         noise.reset()
 
         for _ in range(EPISODE_LENGTH):
-            action = (agent.get_action(state) + noise()).clip(0, 1)
+            if AGENT_TYPE == 'sac':
+                # For SAC, no exploration noise is used.
+                action = agent.get_action(state)
+            else:
+                # Get deterministic action and add exploration noise.
+                action = (agent.get_action(state) + noise()).clip(-1, 1)
+
             next_state, reward, done = env.step(action.item())
             replay_buffer.add(state, action, next_state, reward, done)
             episode_reward += reward
