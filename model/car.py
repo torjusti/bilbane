@@ -29,10 +29,12 @@ class Car:
     track = None  # Track on which the car is situated.
     rail = None  # Track section on which the car is situated.
     rail_progress = None # How far the car has driven along the current rail, normalized by the length of that rail.
+    laps_completed = None # Number of laps the car has completed since previous crash.
 
     # Controller variables
     controller_input = None  # Value in interval [0,1].
     key_control = None  # True if car should be controlled by keyboard keys.
+    controller = None  # Controller for letting AI control car
 
     # Car properties
     mass        = None  # kg
@@ -63,9 +65,11 @@ class Car:
         self.track = track
         self.rail = track.rails[0]
         self.rail_progress = 0
+        self.laps_completed = 0
 
         self.controller_input = 0
         self.key_control = key_control
+        self.controller = None
 
         self.mass        = 0.08       # kg
         self.area        = 0.002268   # m^2
@@ -124,6 +128,7 @@ class Car:
 
         self.rail = self.track.rails[0]
         self.rail_progress = 0
+        self.laps_completed = 0
 
         self.controller_input = 0
 
@@ -541,6 +546,9 @@ class Car:
             cent_vec = self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
+
+    # ---------------------------------------------------------------------------
+    # Helper functions
 
     def rotate(self, vector, angle):
         rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
