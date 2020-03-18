@@ -26,6 +26,7 @@ CHECKPOINT = 10
 
 def get_training_track():
     """ Creates a simple track for training on. """
+    # TODO: Might want to move this thing.
     rails = [
         st.Straight(),
         st.Straight(),

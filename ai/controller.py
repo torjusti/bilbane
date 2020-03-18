@@ -21,9 +21,9 @@ RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
 LOAD_MODEL = False
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
-AGENT_TYPE = 'ddpg'
+AGENT_TYPE = 'sac'
 # Batch size to use when training.
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 # Interval at which the model should be saved.
 CHECKPOINT = 10
 # Number of episodes to train for.
@@ -125,11 +125,12 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
 
 
 def train(track, car):
+    # TODO: Rename this thing,
     writer = SummaryWriter(flush_secs=10)
 
     env = SlotCarEnv(track, car)
 
-    noise = OrnsteinUhlenbeckNoise(1, dt=0.1)
+    noise = OrnsteinUhlenbeckNoise(1)
 
     if AGENT_TYPE == 'ddpg':
         agent = DDPGAgent

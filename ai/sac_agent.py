@@ -11,7 +11,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # TODO: No longer Actor-Critic.
 class SACAgent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=2e-3, alpha=1, q_lr=3e-4, policy_lr=3e-4, a_lr=3e-4):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=2e-3, alpha=1, q_lr=3e-3, policy_lr=1e-3, a_lr=1e-3):
         self.actor = GaussianActor(state_dim, action_dim).to(device)
         self.Q1 = SoftQNetwork(state_dim, action_dim).to(device)
         self.Q2 = SoftQNetwork(state_dim, action_dim).to(device)
@@ -27,7 +27,7 @@ class SACAgent(ActorCriticAgent):
 
         # TODO: Understand.
         self.alpha = alpha
-        self.target_entropy = -torch.prod(torch.Tensor(self.action_dim).to(device)).item()
+        self.target_entropy = -torch.prod(torch.Tensor(action_dim).to(device)).item()
         self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
         self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=a_lr)
 
