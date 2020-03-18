@@ -24,6 +24,7 @@ class Car:
     pos_vec = None  # Position of the car in the global coordinate system.
     vel_vec = None  # Velocity of the car in the global coordinate system.
     phi = None      # Yaw of the car in the global coordinate system.
+    gamma = None    # Angle between x-axis and x'-axis
 
     # System variables
     lane = None  # Lane in which the car is driving.
@@ -59,6 +60,7 @@ class Car:
         self.pos_vec = np.asarray([0, lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
         self.phi = 0.0
+        self.gamma = 0.0
 
         self.lane  = lane
         self.track = track
@@ -96,9 +98,9 @@ class Car:
             self.is_crashed = True
 
         #if self.track_locked:
-        speed = np.linalg.norm(self.vel_vec)
-        local_vel_vec = np.asarray([speed, 0, 0])
-        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        #speed = np.linalg.norm(self.vel_vec)
+        #local_vel_vec = np.asarray([speed, 0, 0])
+        #self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         # Update state given result of crash check
         if self.is_crashed and self.crash_time > 1:

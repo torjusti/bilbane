@@ -1,11 +1,11 @@
 import numpy as np
-from point_mass_car import PointMassCar
+from model.point_mass_car import Car
 
 from model import model
 
 TOL = 1e-3
 
-class RigidBodyCar(PointMassCar):
+class RigidBodyCar(Car):
     # Car will crash if skid angle is larger than this value
     MAX_SKID_ANGLE = np.pi / 6
 
@@ -47,11 +47,31 @@ class RigidBodyCar(PointMassCar):
         izz = self.mass * (self.length ** 2 + self.width ** 2) / 12
         self.inertia = np.asarray([[ixx, 0, 0], [0, iyy, 0], [0, 0, izz]])
 
+    def physics_update(self, delta_time):
+        new_pos_vec, new_vel_vec, new_phi = self.get_physics_state(delta_time)
+
+        # Update rail progress based on new velocity from physics calculations
+        self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, delta_time)
+
+        # Overwrite new_pos_vec and new_phi if locked to track
+        if self.track_locked:
+            pass # TODO
+
+        # Move to next rail if reached end of current rail
+        if self.rail_progress == 1:
+            self.rail = self.rail.next_rail
+            self.rail_progress = 0
+
+        # Update state
+        self.pos_vec = new_pos_vec
+        self.vel_vec = new_vel_vec
+        self.phi = new_phi
+
 
     ####################################################################################################################################################
     # Calculate forces
 
-    def get_pin_friction(self, pos_cg, vel_cg):
+    def get_pin_friction(self, pos_cg, vel_cg, phi):
         """
         Purpose: Calculate friction force acting on pin from rail
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
@@ -61,14 +81,14 @@ class RigidBodyCar(PointMassCar):
 
         f2_vec = np.zeros(3)
 
-        l_vec = self.get_lateral_pin_force(pos_cg, vel_cg)
+        l_vec = self.get_lateral_pin_force(pos_cg, vel_cg, phi)
         L = np.linalg.norm(l_vec)
         f2_vec_ = np.asarray([-self.mu_pin * L, 0, 0])
 
         if np.linalg.norm(vel_cg) < TOL:
             return np.zeros_like(f2_vec_.shape)
 
-        f2_vec = self.rotate(f2_vec_, self.get_gamma_angle(pos_cg))
+        f2_vec = self.rotate(f2_vec_, self.get_gamma_angle(pos_cg, phi))
 
         return f2_vec
 
@@ -140,7 +160,7 @@ class RigidBodyCar(PointMassCar):
 
         return d_vec
 
-    def get_lateral_pin_force(self, pos_cg, vel_cg):
+    def get_lateral_pin_force(self, pos_cg, vel_cg, phi):
         """
         Purpose: Calculate lateral force from the track acting on the car's pin
         Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
@@ -163,24 +183,34 @@ class RigidBodyCar(PointMassCar):
         l_vec = self.rotate(l_vec_, self.get_gamma_angle())
         """
 
-        centripetal_magnitude = np.linalg.norm(self.get_centrifugal_force(pos_cg, vel_cg))
+        centripetal_magnitude = np.linalg.norm(self.get_centrifugal_force(pos_cg, vel_cg, phi))
 
-        other_forces = None
-        other_forces_global = self.rotate(other_forces, -self.theta)
+        other_forces = ( self.get_magnet_force()
+                       + self.get_gravity_force()
+                       + self.get_normal_force()
+                       + self.get_thrust_force()
+                       + lateral_pin_force
+                       + lateral_friction
+                       + pin_friction
+                       + axle_friction
+                       + rolling_resistance
+                       + motor_brake_force
+                       + drag_force )
+        other_forces_global = self.rotate(other_forces, -phi)
 
-        # TODO: Other forces should include pin friction, but
+        # TODO: Other forces should include pin friction, but we have left it out to avoid coupled equations
 
-        r_ccg = self.get_rail_center_to_cg()
+        r_ccg = self.get_rail_center_to_cg(pos_cg)
         e_ccg = r_ccg / np.linalg.norm(r_ccg)
 
-        l_vec_magnitude = (1/np.cos(self.get_beta_angle())) * (centripetal_magnitude - np.dot(other_forces_global, e_ccg))
+        l_vec_magnitude = (1/np.cos(self.get_gamma_angle(pos_cg, phi))) * (centripetal_magnitude - np.dot(other_forces_global, e_ccg))
 
         vec = self.get_rail_center_to_pin() / np.linalg.norm(self.get_rail_center_to_pin())
-        l_vec_direction = -self.rotate(vec, self.theta)
+        l_vec_direction = -self.rotate(vec, phi)
 
         return l_vec_magnitude * l_vec_direction
 
-    def get_centrifugal_force(self):
+    def get_centrifugal_force(self, pos_cg, vel_cg, phi):
         """
         Purpose: Calculate centrifugal force experienced by the car
         Formula: F = ma = mv^2/r
@@ -193,7 +223,7 @@ class RigidBodyCar(PointMassCar):
         # TODO: Invalid radius, car can follow circular paths of different radii
 
         if isinstance(self.rail, model.TurnRail):  # Non-zero only if car is on a TurnRail
-            cent_magnitude = np.dot(self.vel_vec, self.vel_vec) * self.mass / self.rail.get_lane_radius(self.lane)
+            cent_magnitude = np.dot(vel_cg, vel_cg) * self.mass / self.rail.get_lane_radius(self.lane)
             cent_vec = -self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
@@ -220,24 +250,20 @@ class RigidBodyCar(PointMassCar):
     ####################################################################################################################
     # Helper functions
 
-    def get_car_track_angle(self):
-        # TODO: Implement for car that is not a point mass
-        return 0
-
     def rotate(self, vector, angle):
         rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle)], 0], [0, 0, 1])
         rotated_vector = np.dot(rot_matrix, vector)
         return rotated_vector
 
-    def get_rail_center_to_cg(self):
+    def get_rail_center_to_cg(self, pos_cg):
         rail_center = self.rail.get_rail_center()
-        return self.pos_vec - rail_center
+        return pos_cg - rail_center
 
-    def get_rail_center_to_pin(self):
-        return self.get_rail_center_to_cg() + self.rho_pin
+    def get_rail_center_to_pin(self, pos_cg):
+        return self.get_rail_center_to_cg(pos_cg) + self.rho_pin
 
-    def get_pin_position(self):
-        return self.pos_vec + self.rho_pin
+    def get_pin_position(self, pos_cg):
+        return pos_cg + self.rho_pin
 
     def get_pin_velocity(self):
         pass
@@ -245,20 +271,16 @@ class RigidBodyCar(PointMassCar):
     def get_pin_acceleration(self):
         pass
 
-    def get_beta_angle(self):
-        r_ccg = self.get_rail_center_to_cg()
-        r_cp = self.get_rail_center_to_pin()
-        return np.arccos(np.dot(r_ccg, r_cp) / (np.linalg.norm(r_ccg)*np.linalg.norm(r_cp)))
-
-    def get_gamma_angle(self):
-        r_cp = self.get_rail_center_to_pin()
-        e_y = self.rotate(np.asarray([0, 1, 0]), self.theta)
+    def get_gamma_angle(self, pos_cg, phi):
+        # TODO: Update using arctan2?
+        r_cp = self.get_rail_center_to_pin(pos_cg)
+        e_y = self.rotate(np.asarray([0, 1, 0]), phi)
         gamma_value = np.arccos(np.dot(r_cp, e_y) / np.linalg.norm(r_cp))
         gamma_sign = 0
         if isinstance(self.rail, model.TurnRail):
-            if np.linalg.norm(self.get_rail_center_to_cg()) < self.rail.get_lane_radius(self.lane):
+            if np.linalg.norm(self.get_rail_center_to_cg(pos_cg)) < self.rail.get_lane_radius(self.lane):
                 gamma_sign = 1
-            elif np.linalg.norm(self.get_rail_center_to_cg()) < self.rail.get_lane_radius(self.lane):
+            elif np.linalg.norm(self.get_rail_center_to_cg(pos_cg)) < self.rail.get_lane_radius(self.lane):
                 gamma_sign = -1
         return gamma_value * gamma_sign
 
