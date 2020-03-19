@@ -13,9 +13,9 @@ from model import model
 # Size of time step used when training.
 DELTA_TIME = 1 / 60
 # Whether global position or local rail information should be used.
-LOCAL_STATE = False
-# Number of rails to consider when using LOCAL_STATE.
-RAIL_LOOKAHEAD = 5
+LOCAL_STATE = True
+# Number of following rails to consider when using LOCAL_STATE.
+RAIL_LOOKAHEAD = 4
 # Whether or not the initial car position should be randomized.
 RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
@@ -23,7 +23,7 @@ LOAD_MODEL = False
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'sac'
 # Batch size to use when training.
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 # Interval at which the model should be saved.
 CHECKPOINT = 10
 # Number of episodes to train for.
@@ -80,7 +80,7 @@ class SlotCarEnv:
         """ Get an action from the agent for one time-step of the simulation. """
         self.car.controller_input = action
 
-        # TODO: The actual game can run at a much finer granularity.
+        # Note: The actual game can run at a much finer granularity.
         self.track.step(DELTA_TIME)
 
         if self.car.is_crashed:
@@ -113,7 +113,11 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
     total_reward = 0
 
     for _ in range(episode_length):
-        action = agent.get_action(state).item()
+        if AGENT_TYPE == 'sac':
+            action = agent.get_action(state, deterministic=True).item()
+        else:
+            action = agent.get_action(state).item()
+
         next_state, reward, done = env.step(action)
         total_reward += reward
         state = next_state
@@ -124,8 +128,7 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
     return total_reward
 
 
-def train(track, car):
-    # TODO: Rename this thing,
+def get_controller(track, car):
     writer = SummaryWriter(flush_secs=10)
 
     env = SlotCarEnv(track, car)

@@ -10,8 +10,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class DDPGAgent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=0.03241983901982852,
-                 actor_lr=0.00037649803994162256, critic_lr=0.009584442766509752, weight_decay=1e-2):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=1e-3, actor_lr=1e-4, critic_lr=1e-3, weight_decay=1e-2):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.critic = Critic(state_dim, action_dim).to(device)
 

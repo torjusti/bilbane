@@ -41,63 +41,54 @@ class Critic(torch.nn.Module):
         return self.l3(value)
 
 
-
-class SoftQNetwork(torch.nn.Module):
-
-    def __init__(self, num_inputs, num_actions, init_w=3e-3):
-        super(SoftQNetwork, self).__init__()
-        self.linear1 = torch.nn.Linear(num_inputs + num_actions, 256)
-        self.linear2 = torch.nn.Linear(256, 256)
-        self.linear3 = torch.nn.Linear(256, 1)
-
-        self.linear3.weight.data.uniform_(-init_w, init_w)
-        self.linear3.bias.data.uniform_(-init_w, init_w)
-
-    def forward(self, state, action):
-        x = torch.cat([state, action], 1)
-        x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
-        x = self.linear3(x)
-        return x
-
-
 class GaussianActor(torch.nn.Module):
-
-    def __init__(self, num_inputs, num_actions, init_w=3e-3, log_std_min=-20, log_std_max=2):
+    def __init__(self, state_dim, action_dim):
+        """ Initialize the Gaussian actor used in SAC. """
         super().__init__()
-        self.log_std_min = log_std_min
-        self.log_std_max = log_std_max
 
-        self.linear1 = torch.nn.Linear(num_inputs, 256)
-        self.linear2 = torch.nn.Linear(256, 256)
+        self.l0 = torch.nn.Linear(state_dim, 256)
+        self.l1 = torch.nn.Linear(256, 256)
 
-        self.mean_linear = torch.nn.Linear(256, num_actions)
-        self.mean_linear.weight.data.uniform_(-init_w, init_w)
-        self.mean_linear.bias.data.uniform_(-init_w, init_w)
+        # Separate outputs for mean and std.
+        self.mean_head = torch.nn.Linear(256, action_dim)
+        self.log_std_head = torch.nn.Linear(256, action_dim)
 
-        self.log_std_linear = torch.nn.Linear(256, num_actions)
-        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
-        self.log_std_linear.bias.data.uniform_(-init_w, init_w)
+        self.mean_head.weight.data.uniform_(-1e-3, 1e-3)
+        self.mean_head.bias.data.uniform_(-1e-3, 1e-3)
+
+        self.log_std_head.weight.data.uniform_(-1e-3, 1e-3)
+        self.log_std_head.bias.data.uniform_(-1e-3, 1e-3)
 
     def forward(self, state):
-        x = F.relu(self.linear1(state))
-        x = F.relu(self.linear2(x))
+        """ Compute mean and log std. """
+        x = F.relu(self.l0(state))
+        x = F.relu(self.l1(x))
 
-        mean    = self.mean_linear(x)
-        log_std = self.log_std_linear(x)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        mean = self.mean_head(x)
+        # Log of the std is used to allow for both negative
+        # and positive outputs from the neural network.
+        log_std = self.log_std_head(x)
+        log_std = torch.clamp(log_std, -20, 2)
 
         return mean, log_std
 
-    def sample(self, state, epsilon=1e-6):
+    def sample(self, state, deterministic=False, return_likelihood=False):
+        """ Samples actions from the Gaussian actor. """
         mean, log_std = self.forward(state)
-        std = log_std.exp()
 
-        normal = torch.distributions.Normal(mean, std)
+        if deterministic:
+            return torch.tanh(mean)
+
+        normal = torch.distributions.Normal(mean, log_std.exp())
+
+        if not return_likelihood:
+            # TODO: Required?
+            return torch.tanh(normal.sample())
+
         z = normal.rsample()
         action = torch.tanh(z)
 
-        log_pi = normal.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
-        log_pi = log_pi.sum(1, keepdim=True)
+        # Compute log-likelihood using change of variables to handle the squashed action.
+        log_likelihood = normal.log_prob(z) - (torch.log(1 - action.pow(2) + 1e-9)).sum(axis=1, keepdim=True)
 
-        return action, log_pi
+        return action, log_likelihood

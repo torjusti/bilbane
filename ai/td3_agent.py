@@ -10,7 +10,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class TD3Agent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=2e-3, actor_lr=1e-3, critic_lr=1e-3):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, actor_lr=1e-3, critic_lr=1e-3):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)

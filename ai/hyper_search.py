@@ -4,10 +4,10 @@ from ai.controller import SlotCarEnv, evaluate
 from ai.ddpg_agent import DDPGAgent
 from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
+from ai.utils import get_training_track
 from ai.td3_agent import TD3Agent
 from model.car import Car
 from model import model
-from model import standard_tracks as st
 
 # Name of the current study for Optuna.
 STUDY_NAME = 'td3'
@@ -23,30 +23,6 @@ EPISODE_LENGTH = 1000
 CHECKPOINT = 10
 
 # Note: Hyperparameters from `controller` related to state encoding still affect the training here.
-
-def get_training_track():
-    """ Creates a simple track for training on. """
-    # TODO: Might want to move this thing.
-    rails = [
-        st.Straight(),
-        st.Straight(),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Straight(),
-        st.Straight(),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-    ]
-
-    track = model.Track(rails, None)
-    car = Car(model.Rail.Lane2, track)
-    track.cars = [car]
-
-    return track, car
 
 
 def objective(trial):

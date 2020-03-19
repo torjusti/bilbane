@@ -2,23 +2,17 @@ from model.car import Car
 from model import model
 from model import standard_tracks as st
 from visualization import game
-from ai.controller import train
+from ai.controller import get_controller
 
 
 def main():
     rails = [
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Straight(fraction='half'),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Straight(fraction='half'),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
@@ -34,7 +28,7 @@ def main():
 
     track.cars = cars
 
-    controller = train(track, cars[1])
+    controller = get_controller(track, cars[1])
     cars[1].controller = controller
     game.start_game(track)
 

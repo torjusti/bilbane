@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from ai.controller import train, get_state
+from ai.controller import get_controller, get_state
 from ai.hyper_search import get_training_track
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -10,7 +10,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def main():
     track, car = get_training_track()
-    controller = train(track, car)
+    controller = get_controller(track, car)
     agent = controller.agent
 
     fig = plt.figure()

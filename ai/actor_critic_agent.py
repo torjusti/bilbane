@@ -29,7 +29,7 @@ class ActorCriticAgent(ABC):
 
     def load_model(self, actor_path):
         """ Load the actor model from file. """
-        self.actor.load_state_dict(torch.load(actor_path))
+        self.actor.load_state_dict(torch.load(actor_path, map_location=device))
 
     @abstractmethod
     def update(self, batch):
