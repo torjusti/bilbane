@@ -14,13 +14,6 @@ class DDPGAgent(ActorCriticAgent):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.critic = Critic(state_dim, action_dim).to(device)
 
-        # Initialize the output layer weights with small values such
-        # that the initial policy and value estimates are near 0.
-        torch.nn.init.uniform_(self.actor.l3.weight.data, -3e-3, 3e-3)
-        torch.nn.init.uniform_(self.actor.l3.bias.data, -3e-3, 3e-3)
-        torch.nn.init.uniform_(self.critic.l3.weight.data, -3e-3, 3e-3)
-        torch.nn.init.uniform_(self.critic.l3.bias.data, -3e-3, 3e-3)
-
         # Create copies of the target and actor networks which track the above
         # networks. These are use during training for increased stability.
         self.actor_target = copy.deepcopy(self.actor)

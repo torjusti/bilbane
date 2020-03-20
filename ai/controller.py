@@ -21,7 +21,7 @@ RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
 LOAD_MODEL = False
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
-AGENT_TYPE = 'sac'
+AGENT_TYPE = 'ddpg'
 # Batch size to use when training.
 BATCH_SIZE = 128
 # Interval at which the model should be saved.
@@ -113,7 +113,7 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
     total_reward = 0
 
     for _ in range(episode_length):
-        if AGENT_TYPE == 'sac':
+        if isinstance(agent, SACAgent):
             action = agent.get_action(state, deterministic=True).item()
         else:
             action = agent.get_action(state).item()
@@ -129,8 +129,6 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
 
 
 def get_controller(track, car):
-    writer = SummaryWriter(flush_secs=10)
-
     env = SlotCarEnv(track, car)
 
     noise = OrnsteinUhlenbeckNoise(1)
@@ -148,6 +146,8 @@ def get_controller(track, car):
         agent.load_model('actor.pth')
         return AIController(agent, track, car)
 
+    writer = SummaryWriter(flush_secs=10)
+
     replay_buffer = ReplayBuffer()
 
     for episode in range(EPISODES):
@@ -155,13 +155,13 @@ def get_controller(track, car):
         episode_reward = 0
         noise.reset()
 
-        for _ in range(EPISODE_LENGTH):
+        for step in range(EPISODE_LENGTH):
             if AGENT_TYPE == 'sac':
                 # For SAC, no exploration noise is used.
                 action = agent.get_action(state)
             else:
                 # Get deterministic action and add exploration noise.
-                action = (agent.get_action(state) + noise()).clip(-1, 1)
+                action = (agent.get_action(state) + noise(episode * EPISODE_LENGTH + step)).clip(0, 1)
 
             next_state, reward, done = env.step(action.item())
             replay_buffer.add(state, action, next_state, reward, done)
@@ -183,6 +183,12 @@ def get_controller(track, car):
             print(f'Reward on test episode: {evaluation}')
             agent.save_model(f'actor-{episode}.pth')
             writer.add_scalar('reward/test', evaluation, episode)
+
+            if AGENT_TYPE != 'sac':
+                writer.add_scalar('noise-sigma', noise.sigma, episode)
+
+            if AGENT_TYPE == 'sac':
+                writer.add_scalar('alpha', agent.alpha, episode)
 
     # Reset car position to leave model untouched after training.
     car.reset()

@@ -15,6 +15,10 @@ class Actor(torch.nn.Module):
         self.l3 = torch.nn.Linear(256, action_dim)
         self.l3_bn = torch.nn.BatchNorm1d(action_dim)
 
+        # Initialize weights so that the outputs are initially near 0.
+        torch.nn.init.uniform_(self.l3.weight.data, -3e-3, 3e-3)
+        torch.nn.init.uniform_(self.l3.bias.data, -3e-3, 3e-3)
+
     def forward(self, state):
         """ Compute an action for the given state. """
         action = F.relu(self.l1_bn(self.l1(self.l0_bn(state))))
@@ -33,6 +37,10 @@ class Critic(torch.nn.Module):
         self.l2 = torch.nn.Linear(256 + action_dim, 256)
         self.l3 = torch.nn.Linear(256, 1)
 
+        # Initialize weights so that the outputs are initially near 0.
+        torch.nn.init.uniform_(self.l3.weight.data, -3e-3, 3e-3)
+        torch.nn.init.uniform_(self.l3.bias.data, -3e-3, 3e-3)
+
     def forward(self, state, action):
         """ Compute a value for the given state. """
         value = F.relu(self.l1_bn(self.l1(self.l0_bn(state))))
@@ -46,8 +54,11 @@ class GaussianActor(torch.nn.Module):
         """ Initialize the Gaussian actor used in SAC. """
         super().__init__()
 
-        self.l0 = torch.nn.Linear(state_dim, 256)
-        self.l1 = torch.nn.Linear(256, 256)
+        self.l0_bn = torch.nn.BatchNorm1d(state_dim)
+        self.l1 = torch.nn.Linear(state_dim, 256)
+        self.l1_bn = torch.nn.BatchNorm1d(256)
+        self.l2 = torch.nn.Linear(256, 256)
+        self.l2_bn = torch.nn.BatchNorm1d(256)
 
         # Separate outputs for mean and std.
         self.mean_head = torch.nn.Linear(256, action_dim)
@@ -61,8 +72,8 @@ class GaussianActor(torch.nn.Module):
 
     def forward(self, state):
         """ Compute mean and log std. """
-        x = F.relu(self.l0(state))
-        x = F.relu(self.l1(x))
+        x = F.relu(self.l1_bn(self.l1(self.l0_bn(state))))
+        x = F.relu(self.l2_bn(self.l2(x)))
 
         mean = self.mean_head(x)
         # Log of the std is used to allow for both negative
@@ -82,7 +93,6 @@ class GaussianActor(torch.nn.Module):
         normal = torch.distributions.Normal(mean, log_std.exp())
 
         if not return_likelihood:
-            # TODO: Required?
             return torch.tanh(normal.sample())
 
         z = normal.rsample()

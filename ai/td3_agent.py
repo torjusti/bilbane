@@ -1,5 +1,4 @@
 import torch.nn.functional as F
-import numpy as np
 import torch
 import copy
 
@@ -8,9 +7,10 @@ from ai.models import Actor, Critic
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+ACTION_NOISE = 'default'
 
 class TD3Agent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, actor_lr=1e-3, critic_lr=1e-3):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, actor_lr=3e-4, critic_lr=1e-3):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
@@ -18,8 +18,6 @@ class TD3Agent(ActorCriticAgent):
         self.actor_target = copy.deepcopy(self.actor)
         self.Q1_target = copy.deepcopy(self.Q1)
         self.Q2_target = copy.deepcopy(self.Q2)
-
-        # TODO: Should we initialize weights to values near 0?
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.Q1_optimizer = torch.optim.Adam(self.Q1.parameters(), lr=critic_lr)
@@ -37,7 +35,14 @@ class TD3Agent(ActorCriticAgent):
 
         with torch.no_grad():
             # Select action according to policy and add clipped noise.
-            noise = (torch.randn_like(action) * 0.1).clamp(-0.25, 0.25)
+            if ACTION_NOISE == 'none':
+                noise = 0
+            elif ACTION_NOISE == 'half_normal':
+                half_normal = torch.distributions.HalfNormal(0.1)
+                noise = -half_normal.sample(action.shape).to(device).clamp(0, 0.25)
+            elif ACTION_NOISE == 'default':
+                noise = (torch.randn_like(action) * 0.1).clamp(-0.25, 0.25)
+
             next_action = (self.actor_target(next_state) + noise).clamp(0, 1)
 
             # Find the lowest prediction.
