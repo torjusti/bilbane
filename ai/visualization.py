@@ -1,38 +1,45 @@
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from ai.controller import get_controller, get_state
-from ai.hyper_search import get_training_track
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+import json
 
 def main():
-    track, car = get_training_track()
-    controller = get_controller(track, car)
-    agent = controller.agent
+    with open('ai/ddpg_validation.json', 'r') as data_file:
+        ddpg_validation = json.load(data_file)
 
-    fig = plt.figure()
-    ax = Axes3D(fig)
+    with open('ai/ddpg_training.json', 'r') as data_file:
+        ddpg_training = json.load(data_file)
 
-    q_samples = []
+    plt.plot(*list(zip(*ddpg_validation[:30]))[1:], 'b', label='DDPG validation reward')
+    plt.plot(*list(zip(*ddpg_training[:300]))[1:], 'r', alpha=0.2, label='DDPG training reward')
+    plt.legend()
+    plt.show()
 
-    agent.critic.eval()
+    with open('ai/td3_normal_validation.json', 'r') as data_file:
+        td3_normal_validation = json.load(data_file)
 
-    for step in range(100):
-        car.controller_input = agent.get_action(get_state(car)).item()
+    with open('ai/td3_normal_training.json', 'r') as data_file:
+        td3_normal_training = json.load(data_file)
 
-        track.step(1 / 60)
+    plt.plot(*list(zip(*td3_normal_validation[:30]))[1:], 'b', label='TD3 validation reward')
+    plt.plot(*list(zip(*td3_normal_training[:300]))[1:], 'r', alpha=0.2, label='TD3 training reward')
+    plt.legend()
+    plt.show()
 
-        state = torch.tensor([get_state(car)]).float().to(device)
+    with open('ai/sac_validation.json', 'r') as data_file:
+        sac_validation = json.load(data_file)
 
-        for action in range(0, 50):
-            q_samples.append((step, action, agent.critic(state, torch.tensor([[action / 50]]).float().to(device)).cpu().item()))
+    with open('ai/sac_training.json', 'r') as data_file:
+        sac_training = json.load(data_file)
 
-    plt.scatter(*zip(*q_samples))
+    plt.plot(*list(zip(*sac_validation[:30]))[1:], 'b', label='SAC validation reward')
+    plt.plot(*list(zip(*sac_training[:300]))[1:], 'r', alpha=0.2, label='SAC training reward')
+    plt.legend()
+    plt.show()
+
+    plt.plot(*list(zip(*ddpg_validation[:30]))[1:], label='DDPG')
+    plt.plot(*list(zip(*td3_normal_validation[:30]))[1:], label='TD3')
+    plt.plot(*list(zip(*sac_validation[:30]))[1:], label='SAC')
+    plt.legend()
     plt.show()
 
 if __name__ == '__main__':
     main()
-
