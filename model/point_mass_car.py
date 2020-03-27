@@ -97,8 +97,7 @@ class Car:
         """
 
         # Crash check
-        if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
-            self.is_crashed = True
+        self.is_crashed = self.crash_check()
 
         # Make velocity tangential to track
         if self.track_locked:
@@ -113,6 +112,9 @@ class Car:
             self.crash_update(delta_time)
         else:
             self.physics_update(delta_time)
+
+    def crash_check(self):
+        return np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi, self.controller_input)) >= self.MAX_CENTRIFUGAL_FORCE
 
     def reset(self):
         """
@@ -366,17 +368,17 @@ class Car:
             total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
         """
 
-        rolling_resistance = self.get_rolling_resistance(pos, vel)
-        motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
-        axle_friction      = self.get_axle_friction(pos, vel)
-        pin_friction       = self.get_pin_friction(pos, vel, phi)
-        lateral_friction   = self.get_lateral_friction(pos, vel)
-        magnet_force       = self.get_magnet_force(pos, vel)
-        gravity_force      = self.get_gravity_force(pos, vel)
-        normal_force       = self.get_normal_force(pos, vel)
-        thrust_force       = self.get_thrust_force(pos, vel, c_in)
-        drag_force         = self.get_drag_force(pos, vel)
-        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
+        rolling_resistance = self.get_rolling_resistance(pos, vel, phi, c_in)
+        motor_brake_force  = self.get_motor_brake_force(pos, vel, phi, c_in)
+        axle_friction      = self.get_axle_friction(pos, vel, phi, c_in)
+        pin_friction       = self.get_pin_friction(pos, vel, phi, c_in)
+        lateral_friction   = self.get_lateral_friction(pos, vel, phi, c_in)
+        magnet_force       = self.get_magnet_force(pos, vel, phi, c_in)
+        gravity_force      = self.get_gravity_force(pos, vel, phi, c_in)
+        normal_force       = self.get_normal_force(pos, vel, phi, c_in)
+        thrust_force       = self.get_thrust_force(pos, vel, phi, c_in)
+        drag_force         = self.get_drag_force(pos, vel, phi, c_in)
+        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi, c_in)
 
 
         total_force_vec = ( magnet_force
@@ -409,7 +411,7 @@ class Car:
 
         return total_force_vec
 
-    def get_rolling_resistance(self, pos, vel):
+    def get_rolling_resistance(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate rolling resistance acing on the car
         Formula: F_roll = mu_roll * N,   N = normal force
@@ -417,7 +419,7 @@ class Car:
             f1_vec -- ndarray containing the components of the rolling resistance acting on the car (in x-, y- and z-direction)
         """
 
-        n_vec  = self.get_normal_force(pos, vel)
+        n_vec  = self.get_normal_force(pos, vel, phi, c_in)
         N      = np.linalg.norm(n_vec)
         track_friction = self.mu_roll*N
 
@@ -428,7 +430,7 @@ class Car:
 
         return f1_vec
 
-    def get_motor_brake_force(self, pos, vel, c_in):
+    def get_motor_brake_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate motor brake force
         Formula: Braking torque proportional to speed
@@ -447,7 +449,7 @@ class Car:
 
         return mbrake_vec
 
-    def get_axle_friction(self, pos, vel):
+    def get_axle_friction(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate axel friction force
         Return:
@@ -462,7 +464,7 @@ class Car:
         return axle_fric_vec
 
 
-    def get_pin_friction(self, pos, vel, phi):
+    def get_pin_friction(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate friction force acting on pin from rail
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
@@ -471,7 +473,7 @@ class Car:
         """
 
 
-        l_vec  = self.get_lateral_pin_force(pos, vel, phi)
+        l_vec  = self.get_lateral_pin_force(pos, vel, phi, c_in)
         L      = np.linalg.norm(l_vec)
         f2_vec = np.asarray([-self.mu_pin*L, 0, 0])
 
@@ -480,7 +482,7 @@ class Car:
 
         return f2_vec
 
-    def get_lateral_friction(self, pos, vel):
+    def get_lateral_friction(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: This force is unphysical for a point mass, and is hence set to zero
@@ -491,7 +493,7 @@ class Car:
 
         return f3_vec
 
-    def get_magnet_force(self, pos, vel):
+    def get_magnet_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate force from lane acting on the car's magnet
         Returns:
@@ -504,7 +506,7 @@ class Car:
 
         return m_vec
 
-    def get_gravity_force(self, pos, vel):
+    def get_gravity_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate gravitational force acting on the car
         Formula: G = mg
@@ -516,7 +518,7 @@ class Car:
 
         return g_vec
 
-    def get_normal_force(self, pos, vel):
+    def get_normal_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate friction force acting on tires from track
         Formula: sum(F_z) = 0 => N = - (G + m_vec)
@@ -528,11 +530,11 @@ class Car:
         # In 3D, we do not necessarily have 0 net force in z-dir,
         # which the current implementation assumes.
 
-        n_vec = - (self.get_magnet_force(pos, vel) + self.get_gravity_force(pos, vel))
+        n_vec = - (self.get_magnet_force(pos, vel, phi, c_in) + self.get_gravity_force(pos, vel, phi, c_in))
 
         return n_vec
 
-    def get_thrust_force(self, pos, vel, c_in):
+    def get_thrust_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate thrust force acting on the car's tires from track, due to forced rotation of the tires (by the car's motor)
         Formula: T = C*P/v
@@ -545,7 +547,7 @@ class Car:
 
         return t_vec
 
-    def get_drag_force(self, pos, vel):
+    def get_drag_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate drag force acting on tires from track
         Formula: D = .5 * rho * A * C_d * v^2
@@ -563,7 +565,7 @@ class Car:
 
         return d_vec
 
-    def get_lateral_pin_force(self, pos, vel, phi):
+    def get_lateral_pin_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate lateral force from the track acting on the car's pin
         Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
@@ -576,13 +578,13 @@ class Car:
         l_vec = np.zeros(3)
 
         if isinstance(self.rail, model.TurnRail): # Non-zero only if car is on a TurnRail
-            cent_vec = self.get_centrifugal_force(pos, vel, phi)
-            l_vec_magnitude = np.linalg.norm(cent_vec) - np.linalg.norm(self.get_lateral_friction(pos, vel))
+            cent_vec = self.get_centrifugal_force(pos, vel, phi, c_in)
+            l_vec_magnitude = np.linalg.norm(cent_vec) - np.linalg.norm(self.get_lateral_friction(pos, vel, phi, c_in))
             l_vec[1] = self.rail.direction * l_vec_magnitude
 
         return l_vec
 
-    def get_centrifugal_force(self, pos, vel, phi):
+    def get_centrifugal_force(self, pos, vel, phi, c_in):
         """
         Purpose: Calculate centrifugal force experienced by the car
         Formula: F = ma = mv^2/r
