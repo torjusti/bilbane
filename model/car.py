@@ -85,12 +85,11 @@ class Car:
 
     def update_state(self, delta_time):
         """
-        if self.controller_input != 0:
-            print("\nDelta_time:", delta_time, "\n")
-            print("Old position:", self.pos_vec)
-            print("Old velocity:", self.vel_vec)
-            print("Old phi:", self.phi)
-            print("Old rail progress:", self.rail_progress)
+        Purpose: Update car variables for new time step.
+        Args:
+            delta_time (float) -- size of time step (in seconds).
+        Returns:
+            void
         """
 
         # Crash check
@@ -110,15 +109,15 @@ class Car:
             self.crash_update(delta_time)
         else:
             self.physics_update(delta_time)
-        """
-        if self.controller_input != 0:
-            print("New position:", self.pos_vec)
-            print("New velocity:", self.vel_vec)
-            print("New phi:", self.phi)
-            print("New rail progress:", self.rail_progress)
-        """
 
     def reset(self):
+        """
+        Purpose: Reset all car variables after a crash has completed.
+        Args:
+        Returns:
+            void
+        """
+
         self.is_crashed = False
         self.crash_time = 0
 
@@ -133,6 +132,13 @@ class Car:
         self.controller_input = 0
 
     def crash_update(self, delta_time):
+        """
+        Purpose: Update position and orientation of car during crash animation.
+        Args:
+            delta_time (float) -- size of time step (in seconds).
+        Returns:
+            void
+        """
         rail = self.rail
         self.crash_time += delta_time
 
@@ -140,15 +146,22 @@ class Car:
             crash_angle = rail.global_angle
             self.pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
             self.pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
-            # self.phi += 2 * np.linalg.norm(car.vel_vec) * delta_time
+            self.phi += 2 * np.linalg.norm(self.vel_vec) * delta_time
         elif isinstance(rail, model.TurnRail):
             crash_angle = rail.global_angle + rail.angle * self.rail_progress * rail.direction
 
             self.pos_vec[0] += np.linalg.norm(self.vel_vec) * delta_time * np.cos(crash_angle)
             self.pos_vec[1] += np.linalg.norm(self.vel_vec) * delta_time * np.sin(crash_angle)
-            # self.phi += 2 * rail.direction * np.linalg.norm(car.vel_vec) * delta_time
+            self.phi += 2 * rail.direction * np.linalg.norm(self.vel_vec) * delta_time
 
     def physics_update(self, delta_time):
+        """
+        Purpose: Update the car's position and orientation according to the physics model.
+        Args:
+            delta_time (float) -- size of time step (in seconds).
+        Returns:
+            void
+        """
         new_pos_vec, new_vel_vec, new_phi = self.get_physics_state(delta_time)
 
         # Update rail progress based on new velocity from physics calculations
@@ -176,7 +189,6 @@ class Car:
 
                 new_pos_vec[0] += np.cos(new_phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
                 new_pos_vec[1] += np.sin(new_phi + np.pi / 2 * self.lane) * model.Rail.LANE_LANE_DIST / 2
-        #new_phi = self.rail.global_angle + self.rail.angle * self.rail_progress * self.rail.direction
 
         # Move to next rail if reached end of current rail
         if self.rail_progress == 1:
@@ -190,13 +202,13 @@ class Car:
 
     def get_physics_state(self, delta_time):
         """
-        Purpose: Get new state of the car
+        Purpose: Get new state of the car, according to the physics model.
         Args:
-            delta_time -- time step in seconds
+            delta_time (float) -- size of time step (in seconds).
         Returns:
-            new_pos_vec -- ndarray containing new car position (x,y,z)
-            new_vel_vec -- ndarray containing new car velocity (u, v, w)
-            new_phi -- new yaw
+            new_pos_vec (ndarray, shape=[3,]) -- new car position, (X,Y,Z) (in meters).
+            new_vel_vec (ndarray, shape=[3,]) -- new car velocity (in meters per second).
+            new_phi (float) -- new yaw of car (in radians).
         """
 
         # Save old state
@@ -213,30 +225,31 @@ class Car:
 
     def get_new_pos_and_vel(self, old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time):
         """
-        Purpose: Get new position of the car
+        Purpose: Use a numerical method to find new position and velocity, given the car's old state.
         Args:
-            delta_time -- time step in seconds
+            old_pos_vec (ndarray, shape=[3,]) -- old car position, (X,Y,Z) (in meters).
+            old_vel_vec (ndarray, shape=[3,]) -- old car velocity (in meters per second).
+            old_phi (float) -- old yaw of car (in radians).
+            old_c_in (float) -- controller_input at current time step (dimensionless).
+            delta_time (float) -- size of time step (in seconds).
         Returns:
-            new_pos_vec -- ndarray containing new car position (x,y,z)
+            new_pos_vec (ndarray, shape=[3,]) -- new car position, (X, Y, Z) (in meters).
+            new_vel_vec (ndarray, shape=[3,]) -- new car velocity (in meters per second).
         """
 
         old_y = np.concatenate((old_pos_vec, old_vel_vec), axis=None)
         #new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
-        new_y = self.forward_euler_step(old_y, old_c_in, delta_time)
+        new_y = self.newmark_beta_step(old_y, old_c_in, delta_time)
 
         return new_y[:3], new_y[3:]
 
-    def get_phi(self, new_pos_vec):
+    def get_phi(self, pos_vec):
         """
-        Purpose: Get new rotation of the car relative to global coordinate system
-        Assumptions:
-            - Car is a point mass
-            - 2D
+        Purpose: Calculate yaw of the car (i.e. rotation relative to global coordinate system) given a car position.
         Args:
-            new_pos_vec -- ndarray containing new car position (x,y,z)
-            new_rail -- instance of Rail, the rail on which the car is located when it has moved to new_pos_vec
+            pos_vec (ndarray, shape=[3,]) -- car position, (X,Y,Z (in meters).
         Returns:
-            new_phi -- new yaw
+            phi (float) -- calculated yaw
         """
 
         # TODO: Check if assumes car always on track
@@ -244,7 +257,7 @@ class Car:
         # If on a turn
         if isinstance(self.rail, model.TurnRail):
             rail_center_vec = self.rail.get_rail_center()
-            radial_vec = self.pos_vec - rail_center_vec
+            radial_vec = pos_vec - rail_center_vec
             tangent_vec = self.rotate(radial_vec, -self.rail.direction * np.pi / 2)
             phi = np.arctan2(tangent_vec[1], tangent_vec[0])
 
@@ -254,7 +267,16 @@ class Car:
 
         return phi
 
-    def forward_euler_step(self, old_y, old_c_in, delta_time):
+    def newmark_beta_step(self, old_y, old_c_in, delta_time):
+        """
+        Purpose: Calculate new state vector using the newmark-beta method.
+        Args:
+            old_y (ndarray, shape=[6,]) -- old state vector containing position (first three components) and velocity (last three components)
+            old_c_in (float) -- controller input at current time step
+            delta_time (float) -- size of time step
+        Returns:
+            (ndarray, shape=[6,]) -- new state vector containing position (first three components) and velocity (last three components)
+        """
         old_pos_vec = old_y[:3]
         old_vel_vec = old_y[3:]
 
@@ -268,16 +290,40 @@ class Car:
         return np.concatenate((new_pos_vec_global, new_vel_vec_global), axis=None)
 
     def dxdt(self, y):
+        """
+        Purpose: Calculate temporal derivative of position vector. (Helper for RK4.)
+        Args:
+            y (ndarray, shape=[6,]) -- state vector containing position (first three components) and velocity (last three components)
+        Returns:
+            (ndarray, shape=[3,]) -- temporal derivative of position vector
+        """
         return y[3:]
 
     def dvdt(self, y, c_in):
-        # TODO: Do not use old_phi here
+        """
+        Purpose: Calculate temporal derivative of velocity vector. (Helper for RK4.)
+        Args:
+            y (ndarray, shape=[6,]) -- state vector containing position (first three components) and velocity (last three components)
+            c_in (float) -- controller input
+        Returns:
+            global_acc_vec (ndarray, shape=[3,]) -- temporal derivative of velocity vector
+        """
         phi = self.get_phi(y[:3])
         local_acc_vec = self.get_total_force(y[:3], y[3:], phi, c_in) / self.mass
         global_acc_vec = self.rotate(local_acc_vec, -phi)
         return global_acc_vec
 
     def get_rail_progress(self, pos, vel, delta_time):
+        """
+        Purpose: Calculate the car's current rail progress given its current position and velocity.
+        Args:
+            pos (ndarray, shape=[3,] -- global car position (in meters)
+            vel (ndarray, shape=[3,] -- global car velocity (in meters per second)
+            delta_time (float) -- size of time step (in seconds)
+        Returns:
+            rail_progress (float) -- current rail progress (dimensionless number in range [0,1])
+        """
+
         rail_progress = None
 
         if self.track_locked:
@@ -306,9 +352,14 @@ class Car:
 
     def get_total_force(self, pos, vel, phi, c_in):
         """
-        Purpose: Calculate total force on car, and check if it exceeds given force limit
+        Purpose: Calculate total force on car.
+        Args:
+            pos (ndarray, shape=[3,]) -- car position (in meters)
+            vel (ndarray, shape=[3,]) -- car velocity (in meters per second)
+            phi (float) -- car's yaw relative to global coordinate system (in radians)
+            c_in (float) -- controller input (dimensionless)
         Returns:
-            total_force_vec -- ndarray containing force acting on the car (in x-, y- and z-direction)
+            total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
         """
 
         rolling_resistance = self.get_rolling_resistance(pos, vel)
@@ -551,6 +602,14 @@ class Car:
     # Helper functions
 
     def rotate(self, vector, angle):
+        """
+        Purpose: Helper function for rotating a vector by a given angle.
+        Args:
+            vector (ndarray, shape=[3,]) -- vector to be rotated
+            angle (float) -- angle with which to rotate the vector (in radians)
+        Returns:
+            rotated_vector (ndarray, shape=[3,]) -- the input vector rotated by the input angle
+        """
         rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
         rotated_vector = np.dot(rot_matrix, vector)
         return rotated_vector
