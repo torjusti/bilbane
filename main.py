@@ -2,6 +2,7 @@ from model.point_mass_car import Car
 from model import model
 from model import standard_tracks as st
 from visualization import game
+from ai.controller import train
 
 
 def main():
@@ -27,12 +28,14 @@ def main():
     track = model.Track(rails, None)
 
     cars = [
-        Car(model.Rail.Lane2, track, key_control=True),
-        #Car(model.Rail.Lane2, track),
+        Car(model.Rail.Lane1, track, key_control=True),
+        Car(model.Rail.Lane2, track),
     ]
 
     track.cars = cars
 
+    controller = train(track, cars[1])
+    cars[1].controller = controller
     game.start_game(track)
 
 

@@ -1,8 +1,6 @@
 import math
 import numpy as np
 
-DEFAULT_YAW = -90
-
 
 class Rail:
     LANE_EDGE_DIST = .039
