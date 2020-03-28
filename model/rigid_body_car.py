@@ -141,7 +141,7 @@ class RigidBodyCar(PointMassCar):
         f2_vec_ = np.asarray([-self.mu_pin * L, 0, 0])
 
         if np.linalg.norm(vel_cg) < TOL:
-            return np.zeros_like(f2_vec_.shape)
+            return np.zeros_like(f2_vec_)
 
         f2_vec = self.rotate(f2_vec_, self.get_gamma_angle(pos_cg, phi))
 
@@ -174,7 +174,7 @@ class RigidBodyCar(PointMassCar):
             N = np.linalg.norm(n_vec)
             skid_limit = self.mu_tire * N
 
-            f_kin = - self.mu_kin * N * sigma_skid * np.asarray([0,1,0]) # TODO: Fix proper unit vector
+            f_kin = - self.mu_kin * N * sigma_skid * np.asarray([0,1,0])
 
             if f_hjul_magnitude <= skid_limit:
                 f3_vec = -f_hjul
@@ -182,8 +182,7 @@ class RigidBodyCar(PointMassCar):
                 f3_vec = -f_hjul - f_kin
 
         if np.linalg.norm(vel_cg) < TOL:
-            return np.zeros_like(f3_vec.shape)
-
+            return np.zeros_like(f3_vec)
         return f3_vec
 
     def get_magnet_force(self, pos_cg, vel_cg, phi, c_in):
@@ -212,7 +211,7 @@ class RigidBodyCar(PointMassCar):
         d_vec_ = np.asarray([-D, 0, 0])
 
         if np.linalg.norm(vel_cg) < TOL:
-            return np.zeros_like(d_vec_.shape)
+            return np.zeros_like(d_vec_)
 
         d_vec = self.rotate(d_vec_, self.get_gamma_angle(pos_cg, phi))
 
@@ -291,7 +290,8 @@ class RigidBodyCar(PointMassCar):
 
     def get_wheel_torque(self, pos_cg, vel_cg, phi, c_in):
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
-        return np.cross(rho_wheel, self.get_lateral_friction(pos_cg, vel_cg, phi, c_in))
+        lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
+        return np.cross(rho_wheel, lat_fric_vec)
 
     def get_total_torque(self, pos_cg, vel_cg, phi, c_in):
         return self.get_pin_torque(pos_cg, vel_cg, phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, phi, c_in)
@@ -300,13 +300,13 @@ class RigidBodyCar(PointMassCar):
         return np.dot(np.linalg.inv(self.inertia), self.get_total_torque(pos_cg, vel_cg, phi, c_in))
 
     def get_angular_velocity(self, pos_cg, vel_cg, phi, omega, c_in, delta_time):
-        return omega + self.get_angular_acceleration(pos_cg, vel_cg, phi, c_in) * delta_time
+        return omega + self.get_angular_acceleration(pos_cg, vel_cg, phi, c_in)[2] * delta_time
 
     ####################################################################################################################
     # Helper functions
 
     def rotate(self, vector, angle):
-        rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle)], 0], [0, 0, 1])
+        rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
         rotated_vector = np.dot(rot_matrix, vector)
         return rotated_vector
 

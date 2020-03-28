@@ -29,7 +29,7 @@ def main():
     track = model.Track(rails, None)
 
     cars = [
-        PointMassCar(model.Rail.Lane1, track, key_control=True),
+        RigidBodyCar(model.Rail.Lane1, track, key_control=True),
         PointMassCar(model.Rail.Lane2, track),
     ]
 
