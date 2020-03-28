@@ -49,7 +49,7 @@ class Car:
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
 
-    def __init__(self, lane, track, key_control=False, track_locked=True):
+    def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
         self.MAX_CENTRIFUGAL_FORCE = 2
@@ -97,10 +97,10 @@ class Car:
             self.is_crashed = True
 
         # Make velocity tangential to track
-        if self.track_locked:
-            speed = np.linalg.norm(self.vel_vec)
-            local_vel_vec = np.asarray([speed, 0, 0])
-            self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        #if self.track_locked:
+        speed = np.linalg.norm(self.vel_vec)
+        local_vel_vec = np.asarray([speed, 0, 0])
+        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         # Update state given result of crash check
         if self.is_crashed and self.crash_time > 1:
