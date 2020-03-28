@@ -100,10 +100,10 @@ class PointMassCar:
         self.is_crashed = self.crash_check()
 
         # Make velocity tangential to track
-        if self.track_locked:
-            speed = np.linalg.norm(self.vel_vec)
-            local_vel_vec = np.asarray([speed, 0, 0])
-            self.vel_vec = self.rotate(local_vel_vec, -self.phi)
+        #if self.track_locked:
+        speed = np.linalg.norm(self.vel_vec)
+        local_vel_vec = np.asarray([speed, 0, 0])
+        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         # Update state given result of crash check
         if self.is_crashed and self.crash_time > 1:
