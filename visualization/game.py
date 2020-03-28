@@ -2,7 +2,7 @@ import arcade
 import math
 import numpy as np
 
-from model.point_mass_car import Car
+from model.point_mass_car import PointMassCar
 import random
 from visualization.utils import create_arc_outline
 
@@ -165,7 +165,7 @@ class SlotCarGame(arcade.Window):
 
             self.round_time_step(car, delta_time)
 
-    def round_time_step(self, car: Car, delta_time):
+    def round_time_step(self, car: PointMassCar, delta_time):
         self.round_timer[car] += delta_time
 
         if self.previous_rail == self.track.rails[-1] and car.rail == self.track.rails[0]:

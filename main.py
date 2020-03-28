@@ -1,4 +1,5 @@
-from model.point_mass_car import Car
+from model.point_mass_car import PointMassCar
+from model.rigid_body_car import RigidBodyCar
 from model import model
 from model import standard_tracks as st
 from visualization import game
@@ -28,8 +29,8 @@ def main():
     track = model.Track(rails, None)
 
     cars = [
-        Car(model.Rail.Lane1, track, key_control=True),
-        Car(model.Rail.Lane2, track),
+        PointMassCar(model.Rail.Lane1, track, key_control=True),
+        PointMassCar(model.Rail.Lane2, track),
     ]
 
     track.cars = cars

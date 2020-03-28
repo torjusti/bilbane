@@ -1,11 +1,11 @@
 import numpy as np
-from model.point_mass_car import Car
+from model.point_mass_car import PointMassCar
 
 from model import model
 
 TOL = 1e-3
 
-class RigidBodyCar(Car):
+class RigidBodyCar(PointMassCar):
     # Car will crash if skid angle is larger than this value
     MAX_SKID_ANGLE = np.pi / 6
 

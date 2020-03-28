@@ -8,7 +8,7 @@ TOL = 0.001
 
 
 
-class Car:
+class PointMassCar:
     # Boolean to check if car is treated as point mass.
     is_point_mass = None
     # Boolean to check if car is locked to track.
