@@ -7,7 +7,7 @@ TOL = 1e-3
 
 class RigidBodyCar(PointMassCar):
     # Car will crash if skid angle is larger than this value
-    MAX_SKID_ANGLE = np.pi / 6
+    MAX_SKID_ANGLE = np.Inf
 
     # Car properties
     length = None
@@ -50,9 +50,10 @@ class RigidBodyCar(PointMassCar):
         self.inertia = np.asarray([[ixx, 0, 0], [0, iyy, 0], [0, 0, izz]])
 
         self.omega = 0.0
+        self.pos_vec = -self.rho_pin + np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
 
     def crash_check(self):
-        return self.get_gamma_angle(self.pos_vec, self.phi) > self.MAX_SKID_ANGLE
+        return np.abs(self.get_gamma_angle(self.pos_vec, self.phi)) > self.MAX_SKID_ANGLE
 
     def reset(self):
         """
@@ -65,7 +66,7 @@ class RigidBodyCar(PointMassCar):
         self.is_crashed = False
         self.crash_time = 0
 
-        self.pos_vec = np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
+        self.pos_vec = -self.rho_pin + np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
         self.phi = 0.0
         self.omega = 0.0
@@ -95,6 +96,8 @@ class RigidBodyCar(PointMassCar):
         self.pos_vec = new_pos_vec
         self.vel_vec = new_vel_vec
         self.phi = new_phi
+        self.omega = new_omega
+        print(self.pos_vec)
 
     def get_physics_state(self, delta_time):
         """
@@ -116,6 +119,8 @@ class RigidBodyCar(PointMassCar):
 
         # Calculate new state
         new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
+        #new_phi = self.get_phi(new_pos_vec)
+        #new_omega = 0
         new_phi, new_omega = self.get_phi_and_omega(new_pos_vec, new_vel_vec, old_phi, old_omega, old_c_in, delta_time)
 
         return new_pos_vec, new_vel_vec, new_phi, new_omega
@@ -294,7 +299,7 @@ class RigidBodyCar(PointMassCar):
         return np.cross(rho_wheel, lat_fric_vec)
 
     def get_total_torque(self, pos_cg, vel_cg, phi, c_in):
-        return self.get_pin_torque(pos_cg, vel_cg, phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, phi, c_in)
+        return np.zeros(3) #self.get_pin_torque(pos_cg, vel_cg, phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, phi, c_in)
 
     def get_angular_acceleration(self, pos_cg, vel_cg, phi, c_in):
         return np.dot(np.linalg.inv(self.inertia), self.get_total_torque(pos_cg, vel_cg, phi, c_in))
@@ -315,6 +320,9 @@ class RigidBodyCar(PointMassCar):
         return pos_cg - rail_center
 
     def get_rail_center_to_pin(self, pos_cg, phi):
+        #print("Rho pin:", self.rotate(self.rho_pin, -phi))
+        #print("r_ccg:", self.get_rail_center_to_cg(pos_cg))
+        #print("r_cp:", self.get_rail_center_to_cg(pos_cg) + self.rotate(self.rho_pin, -phi))
         return self.get_rail_center_to_cg(pos_cg) + self.rotate(self.rho_pin, -phi)
 
     def get_pin_position(self, pos_cg, phi):
@@ -329,15 +337,25 @@ class RigidBodyCar(PointMassCar):
     def get_gamma_angle(self, pos_cg, phi):
         # TODO: Update using arctan2?
         r_cp = self.get_rail_center_to_pin(pos_cg, phi)
-        e_y = self.rotate(np.asarray([0, 1, 0]), phi)
-        gamma_value = np.arccos(np.dot(r_cp, e_y) / np.linalg.norm(r_cp))
+        e_cp = r_cp / np.linalg.norm(r_cp)
+        e_y = self.rotate(np.asarray([0, 1, 0]), -phi)
+        dot_product = np.dot(e_cp, e_y)
         gamma_sign = 0
         if isinstance(self.rail, model.TurnRail):
-            if np.linalg.norm(self.get_rail_center_to_cg(pos_cg)) < self.rail.get_lane_radius(self.lane):
+            if abs(np.dot(self.get_rail_center_to_cg(pos_cg), r_cp)) > self.rail.get_lane_radius(self.lane):
                 gamma_sign = 1
-            elif np.linalg.norm(self.get_rail_center_to_cg(pos_cg)) < self.rail.get_lane_radius(self.lane):
+            else:
                 gamma_sign = -1
-        return gamma_value * gamma_sign
+
+            if self.rail.direction == model.TurnRail.Left:
+                dot_product *= -1
+
+        gamma = np.arccos(dot_product) * gamma_sign
+        #print("e_cp:", e_cp)
+        #print("e_y:", e_y)
+        #print("dot product:", dot_product)
+        #print(np.arccos(dot_product))
+        return gamma
 
     def get_beta_angle(self, pos_cg, phi):
         # TODO: Update using arctan2?

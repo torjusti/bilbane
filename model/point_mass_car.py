@@ -98,6 +98,8 @@ class PointMassCar:
 
         # Crash check
         self.is_crashed = self.crash_check()
+        if self.is_crashed:
+            print("Ohhhh noooo")
 
         # Make velocity tangential to track
         #if self.track_locked:
