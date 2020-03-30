@@ -22,15 +22,15 @@ RAIL_LOOKAHEAD = 4
 # Whether or not the initial car position should be randomized.
 RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
-LOAD_MODEL = False
+LOAD_MODEL = True
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'sac'
 # Batch size to use when training.
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 # Interval at which the model should be saved.
 CHECKPOINT = 10
 # Number of episodes to train for.
-EPISODES = 1000
+EPISODES = 500
 # Number of timesteps in an episode.
 EPISODE_LENGTH = 1000
 # If Ornstein-Uhlenbeck noise should be used with SAC.

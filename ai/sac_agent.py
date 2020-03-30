@@ -66,6 +66,14 @@ class SACAgent(ActorCriticAgent):
         # needs to be differentiable, so use the reparameterization trick.
         selected_action, log_likelihood = self.actor.sample(state, return_likelihood=True)
 
+        if self.iterations % self.actor_update_step == 0:
+            # Optimize the temperature parameter.
+            alpha_loss = -(self.log_alpha * (log_likelihood.detach() + self.target_entropy)).mean()
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
+            self.alpha = self.log_alpha.detach().exp()
+
         with torch.no_grad():
             # Get selected action for the next state. Note that actions are sampled from current policy.
             new_selected_action, new_log_likelihood = self.actor.sample(next_state, return_likelihood=True)
@@ -101,13 +109,6 @@ class SACAgent(ActorCriticAgent):
             self.actor_optimizer.zero_grad()
             policy_loss.backward()
             self.actor_optimizer.step()
-
-            # Optimize the temperature parameter.
-            alpha_loss = -(self.log_alpha * (log_likelihood.detach() + self.target_entropy)).mean()
-            self.alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optimizer.step()
-            self.alpha = self.log_alpha.detach().exp()
 
         if self.iterations % self.critic_update_step == 0:
             # Paper seems to only perform soft updates for the Q-value networks.
