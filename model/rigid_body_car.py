@@ -279,12 +279,12 @@ class RigidBodyCar(PointMassCar):
 
         other_forces = ( self.get_magnet_force(pos_cg, vel_cg, phi, c_in)
                        + self.get_gravity_force(pos_cg, vel_cg, phi, c_in)
-                       + self.get_normal_force(pos_cg, vel_cg, phi, c_in) )
-                       #+ self.get_thrust_force(pos_cg, vel_cg, phi, c_in)
-                       #+ self.get_axle_friction(pos_cg, vel_cg, phi, c_in)
-                       #+ self.get_rolling_resistance(pos_cg, vel_cg, phi, c_in)
-                       #+ self.get_motor_brake_force(pos_cg, vel_cg, phi, c_in)
-                       #+ self.get_drag_force(pos_cg, vel_cg, phi, c_in) )
+                       + self.get_normal_force(pos_cg, vel_cg, phi, c_in)
+                       + self.get_thrust_force(pos_cg, vel_cg, phi, c_in)
+                       + self.get_axle_friction(pos_cg, vel_cg, phi, c_in)
+                       + self.get_rolling_resistance(pos_cg, vel_cg, phi, c_in)
+                       + self.get_motor_brake_force(pos_cg, vel_cg, phi, c_in)
+                       + self.get_drag_force(pos_cg, vel_cg, phi, c_in) )
         other_forces_global = self.rotate(other_forces, -phi)
 
         # TODO: Other forces should include pin friction and wheel friction, but we have left them out to avoid coupled equations
@@ -359,7 +359,7 @@ class RigidBodyCar(PointMassCar):
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
         lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
         wheel_torque = np.cross(rho_wheel, lat_fric_vec)
-        return wheel_torque
+        return np.zeros(3)
 
     ####################################################################################################################
     # Helper functions
@@ -398,7 +398,7 @@ class RigidBodyCar(PointMassCar):
         """
         Purpose: Find the position of the car's pin in the global coordinate system (X,Y,Z).
         Args:
-            pos_cg (ndarray, shape=[3,] -- position of the car's center of gravity, (X,Y,Z) (in meters).
+            pos_cg (ndarray, shape=[3,]) -- position of the car's center of gravity, (X,Y,Z) (in meters).
             phi (float) -- yaw of the car (in radians).
         Returns:
             global_pin_position (ndarray, shape=[3,]) -- global position of the car's pin, (X,Y,Z) (in meters).
