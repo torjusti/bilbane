@@ -82,6 +82,13 @@ class RigidBodyCar(PointMassCar):
         self.controller_input = 0
 
     def physics_update(self, delta_time):
+        """
+        Purpose: Update the car's position and orientation according to the physics model.
+        Args:
+            delta_time (float) -- size of time step (in seconds).
+        Returns:
+            void
+        """
         new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega = self.get_physics_state(delta_time)
 
         # Update rail progress based on new velocity from physics calculations
@@ -113,7 +120,9 @@ class RigidBodyCar(PointMassCar):
         Returns:
             new_pos_vec (ndarray, shape=[3,]) -- new car position, (X,Y,Z) (in meters).
             new_vel_vec (ndarray, shape=[3,]) -- new car velocity (in meters per second).
+            new_pin_speed (float) -- new speed of the car's pin (in meters per second).
             new_phi (float) -- new yaw of car (in radians).
+            new_omega (float) -- new angular velocity of the car (in radians).
         """
 
         # Save old state
@@ -135,6 +144,22 @@ class RigidBodyCar(PointMassCar):
         return new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega
 
     def get_phi_and_omega(self, pos_cg, vel_cg, old_phi, old_omega, c_in, delta_time):
+        """
+        Purpose: Get new state of the car, according to the physics model.
+        Args:
+            pos_cg (ndarray, shape=[3,]) -- position of the car's center of gravity, (X,Y,Z) (in meters).
+            vel_cg (ndarray, shape=[3,]) -- velocity of the car's center of gravity, (X,Y,Z) (in meters).
+            old_phi (float) -- old yaw of the car (in radians).
+            old_omega (float) -- old angular velocity of the car (in radians per second).
+            c_in (float) -- controller_input at current time step (dimensionless).
+            delta_time (float) -- size of time step (in seconds).
+        Returns:
+            new_pos_vec (ndarray, shape=[3,]) -- new car position, (X,Y,Z) (in meters).
+            new_vel_vec (ndarray, shape=[3,]) -- new car velocity (in meters per second).
+            new_pin_speed (float) -- new speed of the car's pin (in meters per second).
+            new_phi (float) -- new yaw of car (in radians).
+            new_omega (float) -- new angular velocity of the car (in radians per second).
+        """
         total_torque = self.get_pin_torque(pos_cg, vel_cg, old_phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, old_phi, c_in)
         angular_acc = np.dot(np.linalg.inv(self.inertia), total_torque)
         new_omega = old_omega + angular_acc[2] * delta_time
@@ -150,10 +175,10 @@ class RigidBodyCar(PointMassCar):
 
     def get_pin_friction(self, pos_cg, vel_cg, phi, c_in):
         """
-        Purpose: Calculate friction force acting on pin from rail
+        Purpose: Calculate friction force acting on pin from rail.
         Formula: F_pin = mu_pin * L,    L = lateral force from rail on pin
         Returns:
-            f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction)
+            f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction).
         """
 
         l_vec = self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in)
@@ -169,10 +194,10 @@ class RigidBodyCar(PointMassCar):
 
     def get_lateral_friction(self, pos_cg, vel_cg, phi, c_in):
         """
-        Purpose: Calculate friction force acting on tires from track
-        Formula: F_tire = min(mu_tire * N, m * v^2 / r),  N = normal force
+        Purpose: Calculate friction force acting on tires from track.
+        Formula: See physics documentation on Overleaf, Eq. (24).
         Returns:
-            f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
+            f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction).
         """
 
         f3_vec = np.zeros(3)
@@ -208,9 +233,9 @@ class RigidBodyCar(PointMassCar):
 
     def get_magnet_force(self, pos_cg, vel_cg, phi, c_in):
         """
-        Purpose: Calculate force from lane acting on the car's magnet
+        Purpose: Calculate force from lane acting on the car's magnet.
         Returns:
-            m_vec -- ndarray containing the components of the magnetic force acting on the car (in x-, y- and z-direction)
+            m_vec -- ndarray containing the components of the magnetic force acting on the car (in x-, y- and z-direction).
         """
 
         # TODO: Make valid for skidding car (skid => magnet not above rail)
@@ -221,10 +246,10 @@ class RigidBodyCar(PointMassCar):
 
     def get_drag_force(self, pos_cg, vel_cg, phi, c_in):
         """
-        Purpose: Calculate drag force acting on tires from track
+        Purpose: Calculate drag force acting on tires from track.
         Formula: D = .5 * rho * A * C_d * v^2
         Returns:
-            d_vec -- ndarray containing the components of the drag force acting on the car (in x-, y- and z-direction)
+            d_vec -- ndarray containing the components of the drag force acting on the car (in x-, y- and z-direction).
         """
 
         RHO = 1.2  # density of air
@@ -240,24 +265,10 @@ class RigidBodyCar(PointMassCar):
 
     def get_lateral_pin_force(self, pos_cg, vel_cg, phi, c_in):
         """
-        Purpose: Calculate lateral force from the track acting on the car's pin
-        Formula: sum(F_centrifugal) = lateral friction + lateral pin force,
-                 sum(F_centrifugal) = ma = m * v^2 / r
-                 => lateral pin force = m * v^2 / r - lateral friction
+        Purpose: Calculate lateral force from the track acting on the car's pin.
+        Formula: See physics documentation on Overleaf, Eq. (28).
         Returns:
-            l_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction)
-        """
-
-        """
-        rail_center_to_cg_vec = self.get_rail_center_to_cg()
-        radial_unit_vector = rail_center_to_cg_vec / np.linalg.norm(rail_center_to_cg_vec)
-        radial_speed = np.dot(self.vel_vec, radial_unit_vector)
-
-        l_vec_magnitude = 1 / np.cos(self.ksi) * (self.mass * (radial_speed ** 2) / self.rail.get_lane_radius(self.lane) - np.dot(self.get_lateral_friction(), radial_unit_vector))
-
-        l_vec_ = np.asarray([0, -l_vec_magnitude, 0])
-
-        l_vec = self.rotate(l_vec_, self.get_gamma_angle())
+            l_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction).
         """
 
         if isinstance(self.rail, model.StraightRail) or self.pin_speed < TOL:
@@ -321,12 +332,30 @@ class RigidBodyCar(PointMassCar):
     # Calculate momenta
 
     def get_pin_torque(self, pos_cg, vel_cg, phi, c_in):
-        print("r:", self.rho_pin)
-        print("F:", self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in))
+        """
+        Purpose: Calculate the torque acting on the car due to forces with point of attack at the car's pin.
+        Args:
+            pos_cg (ndarray, shape=[3,]) -- position of the car's center of gravity, (X,Y,X) (in meters).
+            vel_cg (ndarray, shape=[3,]) -- velocity of the car's center of gravity, (X,Y,Z) (in meters per second).
+            phi (float): yaw of the car (in radians).
+            c_in (float): controller input of the car (dimensionless)
+        Returns:
+            pin_torque (ndarray, shape=[3,]) -- torque acting on car due to forces with point of attack at the car's pin.
+        """
         pin_torque = np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in) + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
         return pin_torque
 
     def get_wheel_torque(self, pos_cg, vel_cg, phi, c_in):
+        """
+        Purpose: Calculate the torque acting on the car due to forces with point of attack at the car's wheels.
+        Args:
+            pos_cg (ndarray, shape=[3,]) -- position of the car's center of gravity, (X,Y,X) (in meters).
+            vel_cg (ndarray, shape=[3,]) -- velocity of the car's center of gravity, (X,Y,Z) (in meters per second).
+            phi (float): yaw of the car (in radians).
+            c_in (float): controller input of the car (dimensionless)
+        Returns:
+            wheel_torque (ndarray, shape=[3,]) -- torque acting on the car due to forces with point of attack at the car's wheels.
+        """
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
         lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
         wheel_torque = np.cross(rho_wheel, lat_fric_vec)
@@ -335,33 +364,50 @@ class RigidBodyCar(PointMassCar):
     ####################################################################################################################
     # Helper functions
 
-    def rotate(self, vector, angle):
-        rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
-        rotated_vector = np.dot(rot_matrix, vector)
-        return rotated_vector
-
     def get_rail_center_to_cg(self, pos_cg):
+        """
+        Purpose: Find vector the vector r_ccg pointing from the center of the car's current rail to the car's center of gravity.
+                 (Assumes the car is in a turn.)
+        Args:
+            pos_cg (ndarray, shape=[3,]) -- position of the car's center of gravity, (X,Y,Z) (in meters).
+        Returns:
+            r_ccg (ndarray, shape=[3,]) -- vector from the center of the car's current rail to the car's center of gravity (in meters).
+        """
         assert(isinstance(self.rail, model.TurnRail))
         rail_center = self.rail.get_rail_center()
         return pos_cg - rail_center
 
     def get_rail_center_to_pin(self, pos_cg, phi):
+        """
+        Purpose: Find vector the vector r_cp pointing from the center of the car's current rail to the car's pin
+                 (Assumes the car is in a turn.)
+        Args:
+            pos_cg (ndarray, shape=[3,]) -- position of the car's center of gravity, (X,Y,Z) (in meters).
+            phi (float) -- yaw of the car (in radians).
+        Returns:
+            r_cp (ndarray, shape=[3,]) -- vector from the center of the car's current rail to the car's pin (in meters).
+        """
+
         #print("Rho pin:", self.rotate(self.rho_pin, -phi))
         #print("r_ccg:", self.get_rail_center_to_cg(pos_cg))
         #print("r_cp:", self.get_rail_center_to_cg(pos_cg) + self.rotate(self.rho_pin, -phi))
+        assert (isinstance(self.rail, model.TurnRail))
         return self.get_rail_center_to_cg(pos_cg) + self.rotate(self.rho_pin, -phi)
 
     def get_pin_position(self, pos_cg, phi):
+        """
+        Purpose: Find the position of the car's pin in the global coordinate system (X,Y,Z).
+        Args:
+            pos_cg (ndarray, shape=[3,] -- position of the car's center of gravity, (X,Y,Z) (in meters).
+            phi (float) -- yaw of the car (in radians).
+        Returns:
+            global_pin_position (ndarray, shape=[3,]) -- global position of the car's pin, (X,Y,Z) (in meters).
+        """
         return pos_cg + self.rotate(self.rho_pin, -phi)
 
-    def get_pin_velocity(self):
-        pass
-
-    def get_pin_acceleration(self):
-        pass
 
     def get_gamma_angle(self, pos_cg, phi):
-        # TODO: Update using arctan2?
+        """Purpose: Calculate angle from the x'-axis to the x-axis, positive CCW."""
         gamma = 0.0
         if isinstance(self.rail, model.TurnRail):
             r_cp = self.get_rail_center_to_pin(pos_cg, phi)
@@ -387,7 +433,7 @@ class RigidBodyCar(PointMassCar):
         return gamma
 
     def get_beta_angle(self, pos_cg, phi):
-        # TODO: Update using arctan2?
+        """Purpose: Calculate angle between r_ccp and r_cg"""
         beta = 0.0
         if isinstance(self.rail, model.TurnRail):
             r_cp = self.get_rail_center_to_pin(pos_cg, phi)
