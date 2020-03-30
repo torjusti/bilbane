@@ -103,6 +103,7 @@ class RigidBodyCar(PointMassCar):
         self.phi = new_phi
         self.omega = new_omega
         print("Gamma:", self.get_gamma_angle(self.pos_vec, self.phi))
+        print("Beta:", self.get_beta_angle(self.pos_vec, self.phi))
 
     def get_physics_state(self, delta_time):
         """
@@ -329,7 +330,7 @@ class RigidBodyCar(PointMassCar):
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
         lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
         wheel_torque = np.cross(rho_wheel, lat_fric_vec)
-        return np.zeros(3)
+        return wheel_torque
 
     ####################################################################################################################
     # Helper functions
@@ -361,23 +362,21 @@ class RigidBodyCar(PointMassCar):
 
     def get_gamma_angle(self, pos_cg, phi):
         # TODO: Update using arctan2?
-        gamma = 0
+        gamma = 0.0
         if isinstance(self.rail, model.TurnRail):
             r_cp = self.get_rail_center_to_pin(pos_cg, phi)
-            e_cp = r_cp / np.linalg.norm(r_cp)
-            e_y = self.rotate(np.asarray([0, 1, 0]), -phi)
-            dot_product = np.dot(e_cp, e_y)
-            gamma_sign = 0
-            if isinstance(self.rail, model.TurnRail):
-                if abs(np.dot(self.get_rail_center_to_cg(pos_cg), r_cp)) > self.rail.get_lane_radius(self.lane):
-                    gamma_sign = 1
-                else:
-                    gamma_sign = -1
+            e_y_local = np.asarray([0, 1, 0])
+            if self.rail.direction == model.TurnRail.Left:
+                e_y_local *= -1
+            e_y_glob = self.rotate(e_y_local, -phi)
+            gamma = np.arctan2(e_y_glob[1], e_y_glob[0]) - np.arctan2(r_cp[1], r_cp[0])
+            if abs(np.dot(self.get_rail_center_to_cg(pos_cg), r_cp)) <= self.rail.get_lane_radius(self.lane):
+                print("Understeer")
+                gamma = abs(gamma)
+            else:
+                print("Oversteer")
+                gamma = -abs(gamma)
 
-                if self.rail.direction == model.TurnRail.Left:
-                    dot_product *= -1
-
-            gamma = np.arccos(dot_product) * gamma_sign
         else:
             # Cannot simply use difference between phi and rail.global_angle,
             # because if rail.global_angle is slightly below 2pi, a small skid might cause the car's yaw to change from
@@ -389,12 +388,9 @@ class RigidBodyCar(PointMassCar):
 
     def get_beta_angle(self, pos_cg, phi):
         # TODO: Update using arctan2?
-        beta = 0
+        beta = 0.0
         if isinstance(self.rail, model.TurnRail):
             r_cp = self.get_rail_center_to_pin(pos_cg, phi)
             r_ccg = self.get_rail_center_to_cg(pos_cg)
-            beta = np.arccos(np.dot(r_cp, r_ccg)/(np.linalg.norm(r_cp)*np.linalg.norm(r_ccg)))
-            #print("r_cp :", r_cp)
-            #print("r_ccg:", r_ccg)
-            #print("beta :", beta)
+            beta = np.arctan2(r_ccg[1], r_ccg[0]) - np.arctan2(r_cp[1], r_cp[0])
         return beta

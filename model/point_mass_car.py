@@ -375,7 +375,7 @@ class PointMassCar:
         motor_brake_force  = self.get_motor_brake_force(pos, vel, phi, c_in)
         axle_friction      = self.get_axle_friction(pos, vel, phi, c_in)
         pin_friction       = self.get_pin_friction(pos, vel, phi, c_in)
-        lateral_friction   = np.zeros(3) # self.get_lateral_friction(pos, vel, phi, c_in)
+        lateral_friction   = np.zeros(3) #self.get_lateral_friction(pos, vel, phi, c_in)
         magnet_force       = self.get_magnet_force(pos, vel, phi, c_in)
         gravity_force      = self.get_gravity_force(pos, vel, phi, c_in)
         normal_force       = self.get_normal_force(pos, vel, phi, c_in)
