@@ -247,7 +247,10 @@ class PointMassCar:
 
         old_y = np.concatenate((old_pos_vec, old_vel_vec), axis=None)
         #new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
-        new_y = self.newmark_beta_step(old_y, old_c_in, delta_time)
+        new_y = self.newmark_beta_step(old_y, old_phi, old_c_in, delta_time)
+
+        print("New position:", new_y[:3])
+        print("New velocity:", new_y[3:])
 
         return new_y[:3], new_y[3:]
 
@@ -275,7 +278,7 @@ class PointMassCar:
 
         return phi
 
-    def newmark_beta_step(self, old_y, old_c_in, delta_time):
+    def newmark_beta_step(self, old_y, old_phi, old_c_in, delta_time):
         """
         Purpose: Calculate new state vector using the newmark-beta method.
         Args:
@@ -288,10 +291,8 @@ class PointMassCar:
         old_pos_vec = old_y[:3]
         old_vel_vec = old_y[3:]
 
-        phi = self.get_phi(old_pos_vec)
-
-        new_acc_vec_local = self.get_total_force(old_pos_vec, old_vel_vec, phi, old_c_in) / self.mass
-        new_acc_vec_global = self.rotate(new_acc_vec_local, -phi)
+        new_acc_vec_local = self.get_total_force(old_pos_vec, old_vel_vec, old_phi, old_c_in) / self.mass
+        new_acc_vec_global = self.rotate(new_acc_vec_local, -old_phi)
         new_vel_vec_global = old_vel_vec + new_acc_vec_global * delta_time
         new_pos_vec_global = old_pos_vec + old_vel_vec * delta_time + .5 * new_acc_vec_global * (delta_time ** 2)
 
@@ -396,18 +397,18 @@ class PointMassCar:
                           + drag_force )
 
         """
-        if (c_in != 0):
-            print("Rolling resitance:", self.get_rolling_resistance(pos, vel), "\n",
-                  "Motor brake force:", self.get_motor_brake_force(pos, vel, c_in), "\n",
-                  "Axle friction    :", self.get_axle_friction(pos, vel), "\n",
-                  "Pin friction     :", self.get_pin_friction(pos, vel), "\n",
-                  "Lateral friction :", self.get_lateral_friction(pos, vel), "\n",
-                  "Magnet force     :", self.get_magnet_force(pos, vel), "\n",
-                  "Gravity force    :", self.get_gravity_force(pos, vel), "\n",
-                  "Normal force     :", self.get_normal_force(pos, vel), "\n",
-                  "Thrust force     :", self.get_thrust_force(pos, vel, c_in), "\n",
-                  "Drag force       :", self.get_drag_force(pos, vel), "\n",
-                  "Lateral pin force:", self.get_lateral_pin_force(pos, vel, phi), "\n",
+        if c_in != 0:
+            print("Rolling resitance:", rolling_resistance, "\n",
+                  "Motor brake force:", motor_brake_force, "\n",
+                  "Axle friction    :", axle_friction, "\n",
+                  "Pin friction     :", pin_friction, "\n",
+                  "Lateral friction :", lateral_friction, "\n",
+                  "Magnet force     :", magnet_force, "\n",
+                  "Gravity force    :", gravity_force, "\n",
+                  "Normal force     :", normal_force, "\n",
+                  "Thrust force     :", thrust_force, "\n",
+                  "Drag force       :", drag_force, "\n",
+                  "Lateral pin force:", lateral_pin_force, "\n",
                   "Total force:", total_force_vec, "\n")
         """
 

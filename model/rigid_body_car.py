@@ -97,7 +97,6 @@ class RigidBodyCar(PointMassCar):
         self.vel_vec = new_vel_vec
         self.phi = new_phi
         self.omega = new_omega
-        print(self.pos_vec)
 
     def get_physics_state(self, delta_time):
         """
@@ -121,12 +120,14 @@ class RigidBodyCar(PointMassCar):
         new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
         #new_phi = self.get_phi(new_pos_vec)
         #new_omega = 0
-        new_phi, new_omega = self.get_phi_and_omega(new_pos_vec, new_vel_vec, old_phi, old_omega, old_c_in, delta_time)
+        new_phi, new_omega = self.get_phi_and_omega(old_pos_vec, old_vel_vec, old_phi, old_omega, old_c_in, delta_time)
 
         return new_pos_vec, new_vel_vec, new_phi, new_omega
 
     def get_phi_and_omega(self, pos_cg, vel_cg, old_phi, old_omega, c_in, delta_time):
-        new_omega = self.get_angular_velocity(pos_cg, vel_cg, old_phi, old_omega, c_in, delta_time)
+        total_torque = self.get_pin_torque(pos_cg, vel_cg, old_phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, old_phi, c_in)
+        angular_acc = np.dot(np.linalg.inv(self.inertia), total_torque)
+        new_omega = old_omega + angular_acc[2] * delta_time
         new_phi = old_phi + new_omega * delta_time
         return new_phi, new_omega
 
@@ -244,7 +245,11 @@ class RigidBodyCar(PointMassCar):
         l_vec = self.rotate(l_vec_, self.get_gamma_angle())
         """
 
-        centripetal_magnitude = self.mass * np.dot(vel_cg, vel_cg)
+        if isinstance(self.rail, model.StraightRail):
+            return np.zeros(3)
+
+        centripetal_magnitude = self.mass * np.dot(vel_cg, vel_cg) / np.linalg.norm(self.get_rail_center_to_cg(pos_cg))
+        print("Centripetal force:", centripetal_magnitude)
 
         other_forces = ( self.get_magnet_force(pos_cg, vel_cg, phi, c_in)
                        + self.get_gravity_force(pos_cg, vel_cg, phi, c_in)
@@ -261,13 +266,19 @@ class RigidBodyCar(PointMassCar):
         r_ccg = self.get_rail_center_to_cg(pos_cg)
         e_ccg = r_ccg / np.linalg.norm(r_ccg)
 
-        l_vec_magnitude = (1/np.cos(self.get_beta_angle(pos_cg, phi))) * (centripetal_magnitude - np.dot(other_forces_global, e_ccg))
+        print("Contr. other force:", np.dot(other_forces_global, e_ccg))
+
+        l_vec_magnitude = np.abs((1/np.cos(self.get_beta_angle(pos_cg, phi))) * (centripetal_magnitude - np.dot(other_forces_global, e_ccg)))
 
         r_cp = self.get_rail_center_to_pin(pos_cg, phi)
         global_unit_vec = r_cp / np.linalg.norm(r_cp)
-        local_unit_vec = -self.rotate(global_unit_vec, phi)
+        local_unit_vec = self.rotate(global_unit_vec, phi)
 
-        return l_vec_magnitude * local_unit_vec
+        l_vec = - l_vec_magnitude * local_unit_vec
+
+        print("Lateral force:", l_vec)
+
+        return l_vec
 
     def get_centrifugal_force(self, pos_cg, vel_cg, phi, c_in):
         """
@@ -291,21 +302,14 @@ class RigidBodyCar(PointMassCar):
     # Calculate momenta
 
     def get_pin_torque(self, pos_cg, vel_cg, phi, c_in):
-        return np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in) + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
+        pin_torque = np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in))) # + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
+        return pin_torque
 
     def get_wheel_torque(self, pos_cg, vel_cg, phi, c_in):
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
         lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
-        return np.cross(rho_wheel, lat_fric_vec)
-
-    def get_total_torque(self, pos_cg, vel_cg, phi, c_in):
-        return np.zeros(3) #self.get_pin_torque(pos_cg, vel_cg, phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, phi, c_in)
-
-    def get_angular_acceleration(self, pos_cg, vel_cg, phi, c_in):
-        return np.dot(np.linalg.inv(self.inertia), self.get_total_torque(pos_cg, vel_cg, phi, c_in))
-
-    def get_angular_velocity(self, pos_cg, vel_cg, phi, omega, c_in, delta_time):
-        return omega + self.get_angular_acceleration(pos_cg, vel_cg, phi, c_in)[2] * delta_time
+        wheel_torque = np.cross(rho_wheel, lat_fric_vec)
+        return np.zeros(3)
 
     ####################################################################################################################
     # Helper functions
@@ -316,6 +320,7 @@ class RigidBodyCar(PointMassCar):
         return rotated_vector
 
     def get_rail_center_to_cg(self, pos_cg):
+        assert(isinstance(self.rail, model.TurnRail))
         rail_center = self.rail.get_rail_center()
         return pos_cg - rail_center
 
@@ -336,29 +341,40 @@ class RigidBodyCar(PointMassCar):
 
     def get_gamma_angle(self, pos_cg, phi):
         # TODO: Update using arctan2?
-        r_cp = self.get_rail_center_to_pin(pos_cg, phi)
-        e_cp = r_cp / np.linalg.norm(r_cp)
-        e_y = self.rotate(np.asarray([0, 1, 0]), -phi)
-        dot_product = np.dot(e_cp, e_y)
-        gamma_sign = 0
+        gamma = 0
         if isinstance(self.rail, model.TurnRail):
-            if abs(np.dot(self.get_rail_center_to_cg(pos_cg), r_cp)) > self.rail.get_lane_radius(self.lane):
-                gamma_sign = 1
-            else:
-                gamma_sign = -1
+            r_cp = self.get_rail_center_to_pin(pos_cg, phi)
+            e_cp = r_cp / np.linalg.norm(r_cp)
+            e_y = self.rotate(np.asarray([0, 1, 0]), -phi)
+            dot_product = np.dot(e_cp, e_y)
+            gamma_sign = 0
+            if isinstance(self.rail, model.TurnRail):
+                if abs(np.dot(self.get_rail_center_to_cg(pos_cg), r_cp)) > self.rail.get_lane_radius(self.lane):
+                    gamma_sign = 1
+                else:
+                    gamma_sign = -1
 
-            if self.rail.direction == model.TurnRail.Left:
-                dot_product *= -1
+                if self.rail.direction == model.TurnRail.Left:
+                    dot_product *= -1
 
-        gamma = np.arccos(dot_product) * gamma_sign
-        #print("e_cp:", e_cp)
-        #print("e_y:", e_y)
-        #print("dot product:", dot_product)
-        #print(np.arccos(dot_product))
+            gamma = np.arccos(dot_product) * gamma_sign
+        else:
+            # Cannot simply use difference between phi and rail.global_angle,
+            # because if rail.global_angle is slightly below 2pi, a small skid might cause the car's yaw to change from
+            # a value just below 2pi to just above 0, such that the skid will appear to be massive when in it isn't.
+            e_x = self.rotate(np.asarray([1,0,0]), phi)
+            e_x_prime = self.rotate(np.asarray([1,0,0]), self.rail.global_angle)
+            gamma = np.arctan2(e_x[1], e_x[0]) - np.arctan2(e_x_prime[1], e_x_prime[0])
         return gamma
 
     def get_beta_angle(self, pos_cg, phi):
         # TODO: Update using arctan2?
-        r_cp = self.get_rail_center_to_pin(pos_cg, phi)
-        r_ccg = self.get_rail_center_to_cg(pos_cg)
-        return np.arccos(np.dot(r_cp, r_ccg)/(np.linalg.norm(r_cp)*np.linalg.norm(r_ccg)))
+        beta = 0
+        if isinstance(self.rail, model.TurnRail):
+            r_cp = self.get_rail_center_to_pin(pos_cg, phi)
+            r_ccg = self.get_rail_center_to_cg(pos_cg)
+            beta = np.arccos(np.dot(r_cp, r_ccg)/(np.linalg.norm(r_cp)*np.linalg.norm(r_ccg)))
+            #print("r_cp :", r_cp)
+            #print("r_ccg:", r_ccg)
+            #print("beta :", beta)
+        return beta
