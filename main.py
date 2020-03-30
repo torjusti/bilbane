@@ -26,6 +26,7 @@ def main():
         Car(model.Rail.Lane2, track),
     ]
 
+    # TODO: Fix this hack.
     track.cars = cars
 
     controller = get_controller(track, cars[1])

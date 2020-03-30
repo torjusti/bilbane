@@ -9,6 +9,9 @@ from ai.ddpg_agent import DDPGAgent
 from ai.td3_agent import TD3Agent
 from ai.sac_agent import SACAgent
 from model import model
+from model.car import Car
+from model.standard_tracks import Straight, Curve
+from ai.utils import get_training_track
 
 # Size of time step used when training.
 DELTA_TIME = 1 / 60
@@ -19,15 +22,15 @@ RAIL_LOOKAHEAD = 4
 # Whether or not the initial car position should be randomized.
 RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
-LOAD_MODEL = True
+LOAD_MODEL = False
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'sac'
 # Batch size to use when training.
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 # Interval at which the model should be saved.
 CHECKPOINT = 10
 # Number of episodes to train for.
-EPISODES = 300
+EPISODES = 1000
 # Number of timesteps in an episode.
 EPISODE_LENGTH = 1000
 # If Ornstein-Uhlenbeck noise should be used with SAC.
@@ -129,9 +132,26 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
 
     return total_reward
 
+def get_random_rail():
+    if random.random() >= 0.5:
+        # Generate a straight rail.
+        return Straight(random.choice(['std', 'half', 'quarter', 'short']))
+    else:
+        # Generate a curve rail.
+        return Curve(curve=2, angle=45, direction=random.choice([
+            model.TurnRail.Left, model.TurnRail.Right]))
 
-def get_controller(track, car):
-    env = SlotCarEnv(track, car)
+def get_controller(track, car, random_training_track=False):
+    validation_env = SlotCarEnv(track, car)
+
+    if random_training_track:
+        training_track = model.Track([get_random_rail()], None)
+        car = Car(model.Rail.Lane1, training_track)
+        training_track.cars = [car]
+    else:
+        training_track = track
+
+    training_env = SlotCarEnv(training_track, car)
 
     noise = OrnsteinUhlenbeckNoise(1)
 
@@ -141,8 +161,9 @@ def get_controller(track, car):
         agent = TD3Agent
     elif AGENT_TYPE == 'sac':
         agent = SACAgent
+        noise = OrnsteinUhlenbeckNoise(1, min_sigma=0.3)
 
-    agent = agent(env.state.shape[0], 1)
+    agent = agent(training_env.state.shape[0], 1)
 
     if os.path.exists('actor.pth') and LOAD_MODEL:
         agent.load_model('actor.pth')
@@ -153,7 +174,7 @@ def get_controller(track, car):
     replay_buffer = ReplayBuffer()
 
     for episode in range(EPISODES):
-        state, done = env.reset(), False
+        state, done = training_env.reset(), False
         episode_reward = 0
         noise.reset()
 
@@ -165,10 +186,15 @@ def get_controller(track, car):
                 # Get deterministic action and add exploration noise.
                 action = (agent.get_action(state) + noise(episode * EPISODE_LENGTH + step)).clip(0, 1)
 
-            next_state, reward, done = env.step(action.item())
+            next_state, reward, done = training_env.step(action.item())
             replay_buffer.add(state, action, next_state, reward, done)
             episode_reward += reward
             state = next_state
+
+            if random_training_track and len(training_track.rails) - \
+                    training_track.rails.index(car.rail) <= 10:
+                training_track.rails.append(get_random_rail())
+                training_track.initialize_rail_coordinates()
 
             if len(replay_buffer) >= BATCH_SIZE:
                 agent.update(replay_buffer.sample(BATCH_SIZE))
@@ -181,7 +207,7 @@ def get_controller(track, car):
         print(f'Episode {episode}: {episode_reward}, laps: {car.laps_completed}')
 
         if episode % CHECKPOINT == CHECKPOINT - 1:
-            evaluation = evaluate(env, agent)
+            evaluation = evaluate(validation_env, agent)
             print(f'Reward on test episode: {evaluation}')
             agent.save_model(f'actor-{episode}.pth')
             writer.add_scalar('reward/test', evaluation, episode)
@@ -196,3 +222,10 @@ def get_controller(track, car):
     car.reset()
 
     return AIController(agent, track, car)
+
+def main():
+    track, car = get_training_track()
+    get_controller(track, car, random_training_track=True)
+
+if __name__ == '__main__':
+    main()
