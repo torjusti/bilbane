@@ -47,6 +47,7 @@ class RigidBodyCar(PointMassCar):
         ixx = self.mass * (self.width ** 2 + self.height ** 2) / 12
         iyy = self.mass * (self.length ** 2 + self.height ** 2) / 12
         izz = self.mass * (self.length ** 2 + self.width ** 2) / 12
+        print("izz", izz)
         self.inertia = np.asarray([[ixx, 0, 0], [0, iyy, 0], [0, 0, izz]])
 
         self.omega = 0.0
@@ -101,6 +102,7 @@ class RigidBodyCar(PointMassCar):
         self.pin_speed = new_pin_speed
         self.phi = new_phi
         self.omega = new_omega
+        print("Gamma:", self.get_gamma_angle(self.pos_vec, self.phi))
 
     def get_physics_state(self, delta_time):
         """
@@ -123,9 +125,9 @@ class RigidBodyCar(PointMassCar):
 
         # Calculate new state
         new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
-        #new_phi = self.get_phi(new_pos_vec)
-        #new_omega = 0
-        new_phi, new_omega = self.get_phi_and_omega(old_pos_vec, old_vel_vec, old_phi, old_omega, old_c_in, delta_time)
+        new_phi = self.get_phi(new_pos_vec)
+        new_omega = 0
+        #new_phi, new_omega = self.get_phi_and_omega(old_pos_vec, old_vel_vec, old_phi, old_omega, old_c_in, delta_time)
         new_pin_position = self.get_pin_position(new_pos_vec, new_phi)
         new_pin_speed = np.linalg.norm(new_pin_position - old_pin_position) / delta_time
 
@@ -136,6 +138,10 @@ class RigidBodyCar(PointMassCar):
         angular_acc = np.dot(np.linalg.inv(self.inertia), total_torque)
         new_omega = old_omega + angular_acc[2] * delta_time
         new_phi = old_phi + old_omega * delta_time + .5 * angular_acc[2] * (delta_time**2)
+        print("Total torque:", total_torque)
+        print("Angular_acc:", angular_acc)
+        print("New omega:", new_omega)
+        print("New phi:", new_phi)
         return new_phi, new_omega
 
     ####################################################################################################################################################
@@ -170,6 +176,9 @@ class RigidBodyCar(PointMassCar):
 
         f3_vec = np.zeros(3)
 
+        if np.linalg.norm(vel_cg) < TOL:
+            return np.zeros_like(f3_vec)
+
         if isinstance(self.rail, model.TurnRail):
 
             rho_w = np.linalg.norm((self.rho_front_axel + self.rho_rear_axel) / 2)
@@ -194,8 +203,6 @@ class RigidBodyCar(PointMassCar):
             else:
                 f3_vec = -f_hjul - f_kin
 
-        if np.linalg.norm(vel_cg) < TOL:
-            return np.zeros_like(f3_vec)
         return f3_vec
 
     def get_magnet_force(self, pos_cg, vel_cg, phi, c_in):
@@ -313,7 +320,9 @@ class RigidBodyCar(PointMassCar):
     # Calculate momenta
 
     def get_pin_torque(self, pos_cg, vel_cg, phi, c_in):
-        pin_torque = np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in))) # + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
+        print("r:", self.rho_pin)
+        print("F:", self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in))
+        pin_torque = np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in) + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
         return pin_torque
 
     def get_wheel_torque(self, pos_cg, vel_cg, phi, c_in):
