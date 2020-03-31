@@ -1,4 +1,5 @@
 import torch.nn.functional as F
+from torch.distributions import HalfNormal
 import torch
 import copy
 
@@ -7,7 +8,7 @@ from ai.models import Actor, Critic
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-ACTION_NOISE = 'max_half'
+ACTION_NOISE = 'default'
 
 class TD3Agent(ActorCriticAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, actor_lr=3e-4, critic_lr=1e-3):
@@ -35,25 +36,14 @@ class TD3Agent(ActorCriticAgent):
 
         with torch.no_grad():
             # Select action according to policy and add clipped noise.
-            if ACTION_NOISE == 'none':
-                next_action = self.actor_target(next_state)
-            elif ACTION_NOISE == 'half_normal':
-                half_normal = torch.distributions.HalfNormal(0.1)
-                noise = -half_normal.sample(action.shape).to(device).clamp(0, 0.25)
-                next_action = self.actor_target(next_state) + noise
-            elif ACTION_NOISE == 'default':
+            if ACTION_NOISE == 'default':
                 noise = (torch.randn_like(action) * 0.1).clamp(-0.25, 0.25)
-                next_action = self.actor_target(next_state) + noise
-            elif ACTION_NOISE == 'max_half':
-                half_normal = torch.distributions.HalfNormal(0.1)
-                left_noise = -half_normal.sample(action.shape).to(device).clamp(0, 0.25)
-                right_noise = -half_normal.sample(action.shape).to(device).clamp(0, 0.25)
-                next_action = self.actor_target(next_state)
-                next_action = torch.max(next_action + left_noise, next_action + right_noise)
+                next_action = (self.actor_target(next_state) + noise).clamp(0, 1)
+            elif ACTION_NOISE == 'custom':
+                # One-sided noise to avoid underestimation when using negative reinforcement.
+                noise = HalfNormal(0.1).sample(action.shape).to(device).clamp(0, 0.25)
+                next_action = (self.actor_target(next_state) - noise).clamp(0, 1)
 
-            next_action = next_action.clamp(0, 1)
-
-            # Find the lowest prediction.
             min_prediction = torch.min(self.Q1_target(next_state, next_action),
                                        self.Q2_target(next_state, next_action))
 

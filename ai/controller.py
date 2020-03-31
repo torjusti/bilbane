@@ -174,6 +174,10 @@ def get_controller(track, car, random_training_track=False):
     replay_buffer = ReplayBuffer()
 
     for episode in range(EPISODES):
+        if random_training_track:
+            training_track.rails = [get_random_rail()]
+            training_track.initialize_rail_coordinates()
+
         state, done = training_env.reset(), False
         episode_reward = 0
         noise.reset()
@@ -224,7 +228,7 @@ def get_controller(track, car, random_training_track=False):
     return AIController(agent, track, car)
 
 def main():
-    track, car = get_training_track()
+    track, car = get_training_track(version='double-ellipse')
     get_controller(track, car, random_training_track=True)
 
 if __name__ == '__main__':

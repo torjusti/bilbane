@@ -7,12 +7,18 @@ from ai.controller import get_controller
 
 def main():
     rails = [
-        st.Straight(fraction='half'),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Curve(2, 45, direction=st.Curve.Right),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
-        st.Straight(fraction='half'),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
