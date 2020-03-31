@@ -4,7 +4,7 @@ from model.rk4 import rk4_step
 
 G_ACC = 9.81
 RHO   = 1.2  # density of air
-TOL = 0.001
+TOL = 0.003
 
 
 
@@ -84,7 +84,7 @@ class PointMassCar:
         self.mu_roll     = .01        # dimensionless
         self.mu_axle     = .1         # N
         self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .1         # W
+        self.max_power   = .5         # W
 
 
     def update_state(self, delta_time):
@@ -375,10 +375,10 @@ class PointMassCar:
         motor_brake_force  = np.zeros(3) #self.get_motor_brake_force(pos, vel, phi, c_in)
         axle_friction      = np.zeros(3) #self.get_axle_friction(pos, vel, phi, c_in)
         pin_friction       = np.zeros(3) #self.get_pin_friction(pos, vel, phi, c_in)
-        lateral_friction   = np.zeros(3) #self.get_lateral_friction(pos, vel, phi, c_in)
-        magnet_force       = np.zeros(3) #self.get_magnet_force(pos, vel, phi, c_in)
-        gravity_force      = np.zeros(3) #self.get_gravity_force(pos, vel, phi, c_in)
-        normal_force       = np.zeros(3) #self.get_normal_force(pos, vel, phi, c_in)
+        lateral_friction   = self.get_lateral_friction(pos, vel, phi, c_in)
+        magnet_force       = self.get_magnet_force(pos, vel, phi, c_in)
+        gravity_force      = self.get_gravity_force(pos, vel, phi, c_in)
+        normal_force       = self.get_normal_force(pos, vel, phi, c_in)
         thrust_force       = self.get_thrust_force(pos, vel, phi, c_in)
         drag_force         = np.zeros(3) #self.get_drag_force(pos, vel, phi, c_in)
         lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi, c_in)
@@ -397,19 +397,19 @@ class PointMassCar:
                           + drag_force )
 
 
-        if c_in != 0:
-            print("Rolling resitance:", rolling_resistance, "\n",
-                  "Motor brake force:", motor_brake_force, "\n",
-                  "Axle friction    :", axle_friction, "\n",
-                  "Pin friction     :", pin_friction, "\n",
-                  "Lateral friction :", lateral_friction, "\n",
-                  "Magnet force     :", magnet_force, "\n",
-                  "Gravity force    :", gravity_force, "\n",
-                  "Normal force     :", normal_force, "\n",
-                  "Thrust force     :", thrust_force, "\n",
-                  "Drag force       :", drag_force, "\n",
-                  "Lateral pin force:", lateral_pin_force, "\n",
-                  "Total force:", total_force_vec, "\n")
+        #if c_in != 0:
+        print("Rolling resitance:", rolling_resistance, "\n",
+              "Motor brake force:", motor_brake_force, "\n",
+              "Axle friction    :", axle_friction, "\n",
+              "Pin friction     :", pin_friction, "\n",
+              "Lateral friction :", lateral_friction, "\n",
+              "Magnet force     :", magnet_force, "\n",
+              "Gravity force    :", gravity_force, "\n",
+              "Normal force     :", normal_force, "\n",
+              "Thrust force     :", thrust_force, "\n",
+              "Drag force       :", drag_force, "\n",
+              "Lateral pin force:", lateral_pin_force, "\n",
+              "Total force:", total_force_vec, "\n")
 
 
         return total_force_vec
@@ -428,6 +428,7 @@ class PointMassCar:
 
         f1_vec = np.asarray([-track_friction, 0, 0])
 
+        # TODO: Only use relevant component of the velocity for the check below.
         if np.linalg.norm(vel) < TOL:
             return np.zeros_like(f1_vec)
 
@@ -447,6 +448,7 @@ class PointMassCar:
         if c_in == 0:
             mbrake_vec[0] = -self.motor_coeff*np.linalg.norm(vel)
 
+        # TODO: Only use relevant component of the velocity for the check below.
         if np.linalg.norm(vel) < TOL:
             mbrake_vec = np.zeros_like(mbrake_vec)
 
@@ -461,6 +463,7 @@ class PointMassCar:
 
         axle_fric_vec = np.asarray([-self.mu_axle, 0, 0])
 
+        # TODO: Only use relevant component of the velocity for the check below.
         if np.linalg.norm(vel) < TOL:
             axle_fric_vec =  np.zeros_like(axle_fric_vec)
 
@@ -480,6 +483,7 @@ class PointMassCar:
         L      = np.linalg.norm(l_vec)
         f2_vec = np.asarray([-self.mu_pin*L, 0, 0])
 
+        # TODO: Only use relevant component of the velocity for the check below.
         if np.linalg.norm(vel) < TOL:
             f2_vec =  np.zeros_like(f2_vec)
 
@@ -529,10 +533,6 @@ class PointMassCar:
             n_vec -- ndarray containing the components of the normal force acting on the car (in x-, y- and z-direction)
         """
 
-        # TODO: Extend to 3D
-        # In 3D, we do not necessarily have 0 net force in z-dir,
-        # which the current implementation assumes.
-
         n_vec = - (self.get_magnet_force(pos, vel, phi, c_in) + self.get_gravity_force(pos, vel, phi, c_in))
 
         return n_vec
@@ -558,11 +558,10 @@ class PointMassCar:
             d_vec -- ndarray containing the components of the drag force acting on the car (in x-, y- and z-direction)
         """
 
-        # TODO: Make valid for skidding car (skid => area and drag coefficient change)
-
         D     = .5 * RHO * self.area * self.drag_coeff * np.dot(vel, vel)
         d_vec = np.asarray([-D, 0, 0])
 
+        # TODO: Only use relevant component of the velocity for the check below.
         if np.linalg.norm(vel) < TOL:
             d_vec = np.zeros_like(d_vec)
 
