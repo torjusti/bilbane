@@ -84,7 +84,7 @@ class PointMassCar:
         self.mu_roll     = .01        # dimensionless
         self.mu_axle     = .1         # N
         self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .5         # W
+        self.max_power   = .1         # W
 
 
     def update_state(self, delta_time):
@@ -371,16 +371,16 @@ class PointMassCar:
             total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
         """
 
-        rolling_resistance = self.get_rolling_resistance(pos, vel, phi, c_in)
-        motor_brake_force  = self.get_motor_brake_force(pos, vel, phi, c_in)
-        axle_friction      = self.get_axle_friction(pos, vel, phi, c_in)
-        pin_friction       = self.get_pin_friction(pos, vel, phi, c_in)
+        rolling_resistance = np.zeros(3) #self.get_rolling_resistance(pos, vel, phi, c_in)
+        motor_brake_force  = np.zeros(3) #self.get_motor_brake_force(pos, vel, phi, c_in)
+        axle_friction      = np.zeros(3) #self.get_axle_friction(pos, vel, phi, c_in)
+        pin_friction       = np.zeros(3) #self.get_pin_friction(pos, vel, phi, c_in)
         lateral_friction   = np.zeros(3) #self.get_lateral_friction(pos, vel, phi, c_in)
-        magnet_force       = self.get_magnet_force(pos, vel, phi, c_in)
-        gravity_force      = self.get_gravity_force(pos, vel, phi, c_in)
-        normal_force       = self.get_normal_force(pos, vel, phi, c_in)
+        magnet_force       = np.zeros(3) #self.get_magnet_force(pos, vel, phi, c_in)
+        gravity_force      = np.zeros(3) #self.get_gravity_force(pos, vel, phi, c_in)
+        normal_force       = np.zeros(3) #self.get_normal_force(pos, vel, phi, c_in)
         thrust_force       = self.get_thrust_force(pos, vel, phi, c_in)
-        drag_force         = self.get_drag_force(pos, vel, phi, c_in)
+        drag_force         = np.zeros(3) #self.get_drag_force(pos, vel, phi, c_in)
         lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi, c_in)
 
 
