@@ -371,20 +371,20 @@ class Car:
         gravity_force      = self.get_gravity_force(pos, vel)
         normal_force       = self.get_normal_force(pos, vel)
         thrust_force       = self.get_thrust_force(pos, vel, c_in)
+        engine_force       = self.get_engine_force(pos, vel, phi, c_in)
         drag_force         = self.get_drag_force(pos, vel)
         lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
+
+        print(engine_force)
 
 
         total_force_vec = ( magnet_force
                           + gravity_force
                           + normal_force
-                          + thrust_force
+                          + engine_force
                           + lateral_pin_force
                           + lateral_friction
                           + pin_friction
-                          + axle_friction
-                          + rolling_resistance
-                          + motor_brake_force
                           + drag_force )
 
         """
@@ -597,6 +597,39 @@ class Car:
             cent_vec = self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
+
+    def get_engine_force(self, pos, vel, phi, c_in):
+        """
+        Purpose: Combine thrust force, motor braking effects, internal friction and rolling resistance in one function.
+        """
+
+        # Calculate thrust
+        T = c_in * self.max_power / max(0.12, np.linalg.norm(vel))
+        t_vec = np.asarray([T, 0, 0])
+
+        # Calculate axle friction
+        axle_fric_vec = np.asarray([-self.mu_axle, 0, 0])
+        if np.linalg.norm(vel) < TOL:
+            axle_fric_vec = np.zeros_like(axle_fric_vec)
+
+        # Calculate rolling resistance
+        n_vec = self.get_normal_force(pos, vel)
+        N = np.linalg.norm(n_vec)
+        track_friction = self.mu_roll * N
+        f1_vec = np.asarray([-track_friction, 0, 0])
+        if np.linalg.norm(vel) < TOL:
+            f1_vec = np.zeros_like(f1_vec)
+
+        # Calculate motor brake force
+        mbrake_vec = np.zeros(3)
+        if c_in == 0:
+            mbrake_vec[0] = -self.motor_coeff * np.linalg.norm(vel)
+        if np.linalg.norm(vel) < TOL:
+            mbrake_vec = np.zeros_like(mbrake_vec)
+
+        engine_force = t_vec + axle_fric_vec + f1_vec + mbrake_vec
+
+        return engine_force
 
     # ---------------------------------------------------------------------------
     # Helper functions
