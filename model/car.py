@@ -34,7 +34,8 @@ class Car:
     # Controller variables
     controller_input = None  # Value in interval [0,1].
     key_control = None  # True if car should be controlled by keyboard keys.
-    controller = None  # Controller for letting AI control car
+    controller = None  # Controller for letting AI control car.
+    input_cutoff = None  # Maximum controller input for which the car should not move.
 
     # Car properties
     mass        = None  # kg
@@ -45,9 +46,10 @@ class Car:
     mu_tire     = None  # dimensionless
     mu_pin      = None  # dimensionless
     mu_roll     = None  # dimensionless
-    mu_axle     = None  # dimensionless
+    mu_gears    = None  # dimensionless
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
+    vel_eps     = None  # m/s, to avoid division by 0 in thrust formula
 
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
@@ -70,18 +72,20 @@ class Car:
         self.controller_input = 0
         self.key_control = key_control
         self.controller = None
+        self.input_cutoff = 0.29
 
         self.mass        = 0.08       # kg
         self.area        = 0.002268   # m^2
         self.drag_coeff  = 0.35       # dimensionless
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .95        # dimensionless
+        self.motor_eta   = .05        # dimensionless
         self.mu_tire     = .9         # dimensionless
         self.mu_pin      = .04        # dimensionless
         self.mu_roll     = .01        # dimensionless
-        self.mu_axle     = .1         # N
+        self.mu_gears    = .1         # N
         self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .5         # W
+        self.max_power   = 10         # W
+        self.vel_eps     = 0.12       # m/s
 
     def update_state(self, delta_time):
         """
@@ -385,6 +389,7 @@ class Car:
                           + lateral_pin_force
                           + lateral_friction
                           + pin_friction
+                          + rolling_resistance
                           + drag_force )
 
         """
@@ -450,7 +455,7 @@ class Car:
             axel_fric_vec -- ndarray containing the components of the axel friction force acting on the car (in x-, y- and z-direction)
         """
 
-        axle_fric_vec = np.asarray([-self.mu_axle, 0, 0])
+        axle_fric_vec = np.asarray([-self.mu_gears, 0, 0])
 
         if np.linalg.norm(vel) < TOL:
             axle_fric_vec =  np.zeros_like(axle_fric_vec)
@@ -604,30 +609,14 @@ class Car:
         """
 
         # Calculate thrust
-        T = c_in * self.max_power / max(0.12, np.linalg.norm(vel))
-        t_vec = np.asarray([T, 0, 0])
+        T = max(c_in - self.input_cutoff, 0) * self.motor_eta * self.max_power / max(self.vel_eps, np.linalg.norm(vel))
 
-        # Calculate axle friction
-        axle_fric_vec = np.asarray([-self.mu_axle, 0, 0])
+        # Calculate force causing energy dissipation
+        friction_loss = -self.mu_gears
         if np.linalg.norm(vel) < TOL:
-            axle_fric_vec = np.zeros_like(axle_fric_vec)
+            friction_loss = 0
 
-        # Calculate rolling resistance
-        n_vec = self.get_normal_force(pos, vel)
-        N = np.linalg.norm(n_vec)
-        track_friction = self.mu_roll * N
-        f1_vec = np.asarray([-track_friction, 0, 0])
-        if np.linalg.norm(vel) < TOL:
-            f1_vec = np.zeros_like(f1_vec)
-
-        # Calculate motor brake force
-        mbrake_vec = np.zeros(3)
-        if c_in == 0:
-            mbrake_vec[0] = -self.motor_coeff * np.linalg.norm(vel)
-        if np.linalg.norm(vel) < TOL:
-            mbrake_vec = np.zeros_like(mbrake_vec)
-
-        engine_force = t_vec + axle_fric_vec + f1_vec + mbrake_vec
+        engine_force = (T + friction_loss) * np.asarray([1,0,0])
 
         return engine_force
 
