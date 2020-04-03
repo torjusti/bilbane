@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import os
+import torch
 
 from tensorboardX import SummaryWriter
 from ai.noise import OrnsteinUhlenbeckNoise
@@ -143,15 +144,13 @@ def get_random_rail():
 
 def get_controller(track, car, random_training_track=False):
     validation_env = SlotCarEnv(track, car)
+    training_env = validation_env
 
     if random_training_track:
         training_track = model.Track([get_random_rail()], None)
-        car = Car(model.Rail.Lane1, training_track)
+        car = Car(car.lane, training_track)
         training_track.cars = [car]
-    else:
-        training_track = track
-
-    training_env = SlotCarEnv(training_track, car)
+        training_env = SlotCarEnv(training_track, car)
 
     noise = OrnsteinUhlenbeckNoise(1)
 
@@ -167,6 +166,7 @@ def get_controller(track, car, random_training_track=False):
 
     if os.path.exists('actor.pth') and LOAD_MODEL:
         agent.load_model('actor.pth')
+        print('Evaluation:', evaluate(validation_env, agent))
         return AIController(agent, track, car)
 
     writer = SummaryWriter(flush_secs=10)
@@ -183,7 +183,9 @@ def get_controller(track, car, random_training_track=False):
         noise.reset()
 
         for step in range(EPISODE_LENGTH):
-            if AGENT_TYPE == 'sac' and not SAC_USE_OU:
+            if len(replay_buffer) < 10000:
+                action = torch.rand(1).numpy()
+            elif AGENT_TYPE == 'sac' and not SAC_USE_OU:
                 # For SAC, no exploration noise is used.
                 action = agent.get_action(state)
             else:
@@ -200,7 +202,7 @@ def get_controller(track, car, random_training_track=False):
                 training_track.rails.append(get_random_rail())
                 training_track.initialize_rail_coordinates()
 
-            if len(replay_buffer) >= BATCH_SIZE:
+            if len(replay_buffer) >= min(5000, BATCH_SIZE):
                 agent.update(replay_buffer.sample(BATCH_SIZE))
 
             if done:

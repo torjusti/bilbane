@@ -68,11 +68,11 @@ class SACAgent(ActorCriticAgent):
 
         if self.iterations % self.actor_update_step == 0:
             # Optimize the temperature parameter.
-            alpha_loss = -(self.log_alpha * (log_likelihood.detach() + self.target_entropy)).mean()
+            alpha_loss = -(self.log_alpha * (log_likelihood + self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
             self.alpha_optimizer.step()
-            self.alpha = self.log_alpha.detach().exp()
+            self.alpha = self.log_alpha.exp()
 
         with torch.no_grad():
             # Get selected action for the next state. Note that actions are sampled from current policy.
