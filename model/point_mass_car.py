@@ -612,12 +612,15 @@ class PointMassCar:
 
     def rotate(self, vector, angle):
         """
-        Purpose: Helper function for rotating a vector by a given angle.
+        Purpose: Helper function for rotating a vector by the negative of a given angle.
         Args:
             vector (ndarray, shape=[3,]) -- vector to be rotated
             angle (float) -- angle with which to rotate the vector (in radians)
         Returns:
-            rotated_vector (ndarray, shape=[3,]) -- the input vector rotated by the input angle
+            rotated_vector (ndarray, shape=[3,]) -- the input vector rotated by the negative of the input angle
+            (there was a sign error in this function that was not catched until late in the development, so it seems
+            safer to remember that this function rotates with a negative angle rather than to flip all relevant signs
+            throughout the code base.)
         """
         rot_matrix = np.asarray([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
         rotated_vector = np.dot(rot_matrix, vector)

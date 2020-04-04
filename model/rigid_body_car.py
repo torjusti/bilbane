@@ -109,14 +109,23 @@ class RigidBodyCar(PointMassCar):
                     #print("Actual updated pin position:", self.get_pin_position(new_pos_vec, new_phi))
             elif isinstance(self.rail, model.StraightRail):
                 rail_start = np.asarray([self.rail.global_x, self.rail.global_y, 0])
+                print("Rail start:", rail_start)
                 global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
-                unit_vec_normal_to_rail = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle + (self.lane * np.pi / 2))
+                print("Original pin position:", global_pin_pos)
+                unit_vec_normal_to_rail = self.rotate(np.asarray([1, 0, 0]), -(self.rail.global_angle + (self.lane * np.pi / 2)))
+                print("Normal unit vector:", unit_vec_normal_to_rail)
                 rail_start_to_pin = global_pin_pos - rail_start
-                if np.abs(np.dot(rail_start_to_pin, unit_vec_normal_to_rail) - (model.Rail.LANE_LANE_DIST / 2)) < DRIFT_TOL:
-                    unit_vec_parallel_to_rail = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
-                    adjusted_global_pin_pos = rail_start + np.dot(unit_vec_parallel_to_rail, rail_start_to_pin) + unit_vec_normal_to_rail * model.Rail.LANE_LANE_DIST / 2
+                print("Rail start to pin:", rail_start_to_pin)
+                if np.abs(np.dot(rail_start_to_pin, unit_vec_normal_to_rail) - (model.Rail.LANE_LANE_DIST / 2)) > DRIFT_TOL:
+                    unit_vec_parallel_to_rail = self.rotate(np.asarray([1, 0, 0]), -self.rail.global_angle)
+                    print("Unit vec parallel to rail", unit_vec_parallel_to_rail)
+                    print("Dot product:", np.dot(unit_vec_parallel_to_rail, rail_start_to_pin))
+                    print("Product:", unit_vec_normal_to_rail * model.Rail.LANE_LANE_DIST / 2)
+                    adjusted_global_pin_pos = rail_start + np.dot(unit_vec_parallel_to_rail, rail_start_to_pin) * unit_vec_parallel_to_rail + unit_vec_normal_to_rail * model.Rail.LANE_LANE_DIST / 2
+                    print("Adjusted pin position", adjusted_global_pin_pos)
                     pos_diff = adjusted_global_pin_pos - global_pin_pos
                     new_pos_vec = new_pos_vec + pos_diff
+                    print("Adjusted car position", new_pos_vec)
 
         # Update rail progress based on new velocity from physics calculations
         self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, new_phi, delta_time)
@@ -221,7 +230,7 @@ class RigidBodyCar(PointMassCar):
                 angle = -angle
             rail_progress = angle * self.rail.get_lane_radius(self.lane) / self.rail.get_length(self.lane)
         elif isinstance(self.rail, model.StraightRail):
-            unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
+            unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), -self.rail.global_angle)
             rail_start_to_pin_vec = pin_pos - rail_start_vec
             rail_progress = np.linalg.norm(np.dot(unit_vec_along_track, rail_start_to_pin_vec)) / self.rail.get_length(self.lane)
 
