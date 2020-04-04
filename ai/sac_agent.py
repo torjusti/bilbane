@@ -11,7 +11,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SACAgent(ActorCriticAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, critic_lr=1e-3,
-                 actor_lr=3e-4, critic_update_step=2, actor_update_step=1, actor_decay=1e-2):
+                 actor_lr=3e-4, critic_update_step=1, actor_update_step=1, actor_decay=0):
         self.actor = GaussianActor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
@@ -54,8 +54,8 @@ class SACAgent(ActorCriticAgent):
         action = action.cpu().detach().squeeze(0).numpy().flatten()
         # Put network back into training mode.
         self.actor.train()
-        # Return scaled action, since pre-scaled action is centered around 0.
-        return 0.5 * (action + 1)
+        # Return un-scaled action.
+        return action
 
     def update(self, batch):
         self.iterations += 1

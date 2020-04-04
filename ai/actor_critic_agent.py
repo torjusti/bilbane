@@ -33,4 +33,5 @@ class ActorCriticAgent(ABC):
 
     @abstractmethod
     def update(self, batch):
+        """ Train the agent with one minibatch of data. """
         pass
