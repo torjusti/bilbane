@@ -97,16 +97,16 @@ class RigidBodyCar(PointMassCar):
             if isinstance(self.rail, model.TurnRail):
                 global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
                 r_cp = self.get_rail_center_to_pin(new_pos_vec, new_phi)
-                print("Pin position:", global_pin_pos)
+                #print("Pin position:", global_pin_pos)
                 if np.abs(np.linalg.norm(r_cp) - self.rail.get_lane_radius(self.lane)) > DRIFT_TOL:
                     e_cp = r_cp / np.linalg.norm(r_cp)
-                    print("e_cp:", e_cp)
+                    #print("e_cp:", e_cp)
                     adjusted_global_pin_pos = self.rail.get_rail_center() + self.rail.get_lane_radius(self.lane) * e_cp
-                    print("Adjusted pin position:", adjusted_global_pin_pos)
+                    #print("Adjusted pin position:", adjusted_global_pin_pos)
                     pos_diff = adjusted_global_pin_pos - global_pin_pos
-                    print("Position difference:", pos_diff)
+                    #print("Position difference:", pos_diff)
                     new_pos_vec = new_pos_vec + pos_diff
-                    print("Actual updated pin position:", self.get_pin_position(new_pos_vec, new_phi))
+                    #print("Actual updated pin position:", self.get_pin_position(new_pos_vec, new_phi))
             elif isinstance(self.rail, model.StraightRail):
                 rail_start = np.asarray([self.rail.global_x, self.rail.global_y, 0])
                 global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
@@ -210,25 +210,26 @@ class RigidBodyCar(PointMassCar):
 
         rail_progress = None
 
-        if self.track_locked:
-            rail_progress = self.rail_progress
-            rail_progress += np.linalg.norm(vel) * delta_time / self.rail.get_length(self.lane)
-        else:
-            rail_start_vec = np.asarray([self.rail.global_x, self.rail.global_y, 0])
-            if isinstance(self.rail, model.TurnRail):
-                rail_center_vec = self.rail.get_rail_center()
-                cent_to_start_vec = rail_start_vec - rail_center_vec
-                cent_to_cg_vec = pos - rail_center_vec
-                angle = np.arctan2(cent_to_cg_vec[1], cent_to_cg_vec[0]) - np.arctan2(cent_to_start_vec[1], cent_to_start_vec[0])
-                if angle < 0:
-                    angle = -angle
-                rail_progress = angle * self.rail.get_lane_radius(self.lane) / self.rail.get_length(self.lane)
-            elif isinstance(self.rail, model.StraightRail):
-                unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
-                rail_start_to_cg_vec = pos - rail_start_vec
-                rail_progress = np.linalg.norm(np.dot(unit_vec_along_track, rail_start_to_cg_vec)) / self.rail.get_length(self.lane)
+        rail_start_vec = np.asarray([self.rail.global_x, self.rail.global_y, 0])
+        pin_pos = pos + self.rotate(self.rho_pin, -phi)
+        if isinstance(self.rail, model.TurnRail):
+            rail_center_vec = self.rail.get_rail_center()
+            cent_to_start_vec = rail_start_vec - rail_center_vec
+            cent_to_pin_vec = pin_pos - rail_center_vec
+            angle = np.arctan2(cent_to_pin_vec[1], cent_to_pin_vec[0]) - np.arctan2(cent_to_start_vec[1], cent_to_start_vec[0])
+            if angle < 0:
+                angle = -angle
+            rail_progress = angle * self.rail.get_lane_radius(self.lane) / self.rail.get_length(self.lane)
+        elif isinstance(self.rail, model.StraightRail):
+            unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
+            rail_start_to_pin_vec = pin_pos - rail_start_vec
+            rail_progress = np.linalg.norm(np.dot(unit_vec_along_track, rail_start_to_pin_vec)) / self.rail.get_length(self.lane)
 
-        rail_progress = min(rail_progress, 1)
+        rail_progress = min(rail_progress, 1.0)
+        print("Rail progress:", rail_progress)
+
+        assert rail_progress >= 0.0, "Car has reversed back to a previous rail."
+
         return rail_progress
 
     ####################################################################################################################################################
@@ -291,13 +292,13 @@ class RigidBodyCar(PointMassCar):
             else:
                 f3_vec = -f_hjul - f_kin
 
-            print("Pin torque:", pin_torque)
-            print("Sigma skid:", sigma_skid)
-            print("Skid limit:", skid_limit)
-            print("f_wheel_magnitude:", f_hjul_magnitude)
-            print("f_wheel:", f_hjul)
-            print("f_kin:", f_kin)
-            print("Lateral friction:", f3_vec)
+            #print("Pin torque:", pin_torque)
+            #print("Sigma skid:", sigma_skid)
+            #print("Skid limit:", skid_limit)
+            #print("f_wheel_magnitude:", f_hjul_magnitude)
+            #print("f_wheel:", f_hjul)
+            #print("f_kin:", f_kin)
+            #print("Lateral friction:", f3_vec)
 
         return f3_vec
 
@@ -393,7 +394,7 @@ class RigidBodyCar(PointMassCar):
         e_ccg = r_ccg / np.linalg.norm(r_ccg)
 
         other_forces_dotted = np.dot(other_forces_global, e_ccg)
-        print("Other forces dotted:", other_forces_dotted)
+        #print("Other forces dotted:", other_forces_dotted)
 
         tangential_unit_vector = self.rotate(e_ccg, np.pi / 2)
         tangential_speed = np.dot(vel_cg, tangential_unit_vector)
@@ -441,7 +442,7 @@ class RigidBodyCar(PointMassCar):
             pin_torque (ndarray, shape=[3,]) -- torque acting on car due to forces with point of attack at the car's pin.
         """
         pin_torque = np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in)))# + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
-        print("Pin torque:", pin_torque)
+        #print("Pin torque:", pin_torque)
         return pin_torque
 
     def get_wheel_torque(self, pos_cg, vel_cg, phi, c_in):
@@ -458,7 +459,7 @@ class RigidBodyCar(PointMassCar):
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
         lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
         wheel_torque = np.cross(rho_wheel, lat_fric_vec)
-        print("Wheel torque:", wheel_torque)
+        #print("Wheel torque:", wheel_torque)
         return np.zeros(3)
 
     ####################################################################################################################
@@ -521,10 +522,10 @@ class RigidBodyCar(PointMassCar):
             if gamma < -np.pi:
                 gamma += 2*np.pi
             if abs(np.dot(self.get_rail_center_to_cg(pos_cg), r_cp)) <= self.rail.get_lane_radius(self.lane):
-                print("Understeer")
+                #print("Understeer")
                 gamma = abs(gamma)
             else:
-                print("Oversteer")
+                #print("Oversteer")
                 gamma = -abs(gamma)
 
         else:

@@ -396,7 +396,7 @@ class PointMassCar:
                           + motor_brake_force
                           + drag_force )
 
-
+        """
         #if c_in != 0:
         print("Rolling resitance:", rolling_resistance, "\n",
               "Motor brake force:", motor_brake_force, "\n",
@@ -410,7 +410,7 @@ class PointMassCar:
               "Drag force       :", drag_force, "\n",
               "Lateral pin force:", lateral_pin_force, "\n",
               "Total force:", total_force_vec, "\n")
-
+        """
 
         return total_force_vec
 
