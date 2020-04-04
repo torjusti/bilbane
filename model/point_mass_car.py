@@ -173,7 +173,7 @@ class PointMassCar:
         new_pos_vec, new_vel_vec, new_phi = self.get_physics_state(delta_time)
 
         # Update rail progress based on new velocity from physics calculations
-        self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, delta_time)
+        self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, new_phi, delta_time)
 
         # Overwrite new_pos_vec and new_phi if locked to track
         if self.track_locked:
@@ -322,7 +322,7 @@ class PointMassCar:
         global_acc_vec = self.rotate(local_acc_vec, -phi)
         return global_acc_vec
 
-    def get_rail_progress(self, pos, vel, delta_time):
+    def get_rail_progress(self, pos, vel, phi, delta_time):
         """
         Purpose: Calculate the car's current rail progress given its current position and velocity.
         Args:

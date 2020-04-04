@@ -92,27 +92,34 @@ class RigidBodyCar(PointMassCar):
         """
         new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega = self.get_physics_state(delta_time)
 
-        # Update rail progress based on new velocity from physics calculations
-        self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, delta_time)
-
         # Overwrite new_pos_vec if locked to track
         if self.track_locked:
-            global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
-            r_cp = self.get_rail_center_to_pin(new_pos_vec, new_phi)
-            print("Pin position:", global_pin_pos)
             if isinstance(self.rail, model.TurnRail):
-                e_cp = r_cp / np.linalg.norm(r_cp)
-                print("e_cp:", e_cp)
-                adjusted_global_pin_pos = self.rail.get_rail_center() + self.rail.get_lane_radius(self.lane) * e_cp
-                print("Adjusted pin position:", adjusted_global_pin_pos)
-                pos_diff = adjusted_global_pin_pos - global_pin_pos
-                print("Position difference:", pos_diff)
+                global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
+                r_cp = self.get_rail_center_to_pin(new_pos_vec, new_phi)
+                print("Pin position:", global_pin_pos)
                 if np.abs(np.linalg.norm(r_cp) - self.rail.get_lane_radius(self.lane)) > DRIFT_TOL:
+                    e_cp = r_cp / np.linalg.norm(r_cp)
+                    print("e_cp:", e_cp)
+                    adjusted_global_pin_pos = self.rail.get_rail_center() + self.rail.get_lane_radius(self.lane) * e_cp
+                    print("Adjusted pin position:", adjusted_global_pin_pos)
+                    pos_diff = adjusted_global_pin_pos - global_pin_pos
+                    print("Position difference:", pos_diff)
                     new_pos_vec = new_pos_vec + pos_diff
                     print("Actual updated pin position:", self.get_pin_position(new_pos_vec, new_phi))
             elif isinstance(self.rail, model.StraightRail):
-                pass
+                rail_start = np.asarray([self.rail.global_x, self.rail.global_y, 0])
+                global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
+                unit_vec_normal_to_rail = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle + (self.lane * np.pi / 2))
+                rail_start_to_pin = global_pin_pos - rail_start
+                if np.abs(np.dot(rail_start_to_pin, unit_vec_normal_to_rail) - (model.Rail.LANE_LANE_DIST / 2)) < DRIFT_TOL:
+                    unit_vec_parallel_to_rail = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
+                    adjusted_global_pin_pos = rail_start + np.dot(unit_vec_parallel_to_rail, rail_start_to_pin) + unit_vec_normal_to_rail * model.Rail.LANE_LANE_DIST / 2
+                    pos_diff = adjusted_global_pin_pos - global_pin_pos
+                    new_pos_vec = new_pos_vec + pos_diff
 
+        # Update rail progress based on new velocity from physics calculations
+        self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, new_phi, delta_time)
 
         # Move to next rail if reached end of current rail
         if self.rail_progress == 1:
@@ -187,6 +194,42 @@ class RigidBodyCar(PointMassCar):
         print("New omega:", new_omega)
         print("New phi:", new_phi)
         return new_phi, new_omega
+
+    def get_rail_progress(self, pos, vel, phi, delta_time):
+        """
+        Purpose: Calculate the car's current rail progress given its current position and velocity.
+        Args:
+            pos (ndarray, shape=[3,] -- global car position (in meters)
+            vel (ndarray, shape=[3,] -- global car velocity (in meters per second)
+            delta_time (float) -- size of time step (in seconds)
+        Returns:
+            rail_progress (float) -- current rail progress (dimensionless number in range [0,1])
+        """
+
+        # TODO: Update this
+
+        rail_progress = None
+
+        if self.track_locked:
+            rail_progress = self.rail_progress
+            rail_progress += np.linalg.norm(vel) * delta_time / self.rail.get_length(self.lane)
+        else:
+            rail_start_vec = np.asarray([self.rail.global_x, self.rail.global_y, 0])
+            if isinstance(self.rail, model.TurnRail):
+                rail_center_vec = self.rail.get_rail_center()
+                cent_to_start_vec = rail_start_vec - rail_center_vec
+                cent_to_cg_vec = pos - rail_center_vec
+                angle = np.arctan2(cent_to_cg_vec[1], cent_to_cg_vec[0]) - np.arctan2(cent_to_start_vec[1], cent_to_start_vec[0])
+                if angle < 0:
+                    angle = -angle
+                rail_progress = angle * self.rail.get_lane_radius(self.lane) / self.rail.get_length(self.lane)
+            elif isinstance(self.rail, model.StraightRail):
+                unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
+                rail_start_to_cg_vec = pos - rail_start_vec
+                rail_progress = np.linalg.norm(np.dot(unit_vec_along_track, rail_start_to_cg_vec)) / self.rail.get_length(self.lane)
+
+        rail_progress = min(rail_progress, 1)
+        return rail_progress
 
     ####################################################################################################################################################
     # Calculate forces
