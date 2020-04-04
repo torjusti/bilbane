@@ -3,7 +3,8 @@ from model.point_mass_car import PointMassCar
 
 from model import model
 
-TOL = 1e-3
+TOL = 1.0e-3
+DRIFT_TOL = 1.0e-10
 
 class RigidBodyCar(PointMassCar):
     # Car will crash if skid angle is larger than this value
@@ -27,7 +28,7 @@ class RigidBodyCar(PointMassCar):
 
     omega = None
 
-    def __init__(self, lane, track, key_control=False, track_locked=False):
+    def __init__(self, lane, track, key_control=False, track_locked=True):
         super().__init__(lane, track, key_control, track_locked)
         self.is_point_mass = False
 
@@ -52,7 +53,7 @@ class RigidBodyCar(PointMassCar):
 
         self.omega = 0.0
         self.pos_vec = -self.rho_pin + np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
-        self.phi = self.get_phi(self.pos_vec) # TODO: This has been added for debugging purposes. Should not be here in final code.
+        self.phi = 0.0 #self.get_phi(self.pos_vec) # TODO: This has been added for debugging purposes. Should not be here in final code.
         self.pin_speed = 0.0
 
     def crash_check(self):
@@ -72,7 +73,7 @@ class RigidBodyCar(PointMassCar):
         self.pos_vec = -self.rho_pin + np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.vel_vec = np.zeros(3)
         self.pin_speed = 0.0
-        self.phi = self.get_phi(self.pos_vec) # TODO: This has been added for debugging purposes. Should not be here in final code.
+        self.phi = 0.0 #self.get_phi(self.pos_vec) # TODO: This has been added for debugging purposes. Should not be here in final code.
         self.omega = 0.0
 
         self.rail = self.track.rails[0]
@@ -94,9 +95,24 @@ class RigidBodyCar(PointMassCar):
         # Update rail progress based on new velocity from physics calculations
         self.rail_progress = self.get_rail_progress(new_pos_vec, new_vel_vec, delta_time)
 
-        # Overwrite new_pos_vec and new_phi if locked to track
+        # Overwrite new_pos_vec if locked to track
         if self.track_locked:
-            pass # TODO
+            global_pin_pos = self.get_pin_position(new_pos_vec, new_phi)
+            r_cp = self.get_rail_center_to_pin(new_pos_vec, new_phi)
+            print("Pin position:", global_pin_pos)
+            if isinstance(self.rail, model.TurnRail):
+                e_cp = r_cp / np.linalg.norm(r_cp)
+                print("e_cp:", e_cp)
+                adjusted_global_pin_pos = self.rail.get_rail_center() + self.rail.get_lane_radius(self.lane) * e_cp
+                print("Adjusted pin position:", adjusted_global_pin_pos)
+                pos_diff = adjusted_global_pin_pos - global_pin_pos
+                print("Position difference:", pos_diff)
+                if np.abs(np.linalg.norm(r_cp) - self.rail.get_lane_radius(self.lane)) > DRIFT_TOL:
+                    new_pos_vec = new_pos_vec + pos_diff
+                    print("Actual updated pin position:", self.get_pin_position(new_pos_vec, new_phi))
+            elif isinstance(self.rail, model.StraightRail):
+                pass
+
 
         # Move to next rail if reached end of current rail
         if self.rail_progress == 1:
@@ -111,7 +127,7 @@ class RigidBodyCar(PointMassCar):
         self.omega = new_omega
         print("Gamma:", self.get_gamma_angle(self.pos_vec, self.phi))
         print("Beta:", self.get_beta_angle(self.pos_vec, self.phi))
-        if (isinstance(self.rail, model.TurnRail)):
+        if isinstance(self.rail, model.TurnRail):
             print(self.rail.get_lane_radius(self.lane))
 
     def get_physics_state(self, delta_time):
@@ -400,7 +416,7 @@ class RigidBodyCar(PointMassCar):
         lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
         wheel_torque = np.cross(rho_wheel, lat_fric_vec)
         print("Wheel torque:", wheel_torque)
-        return wheel_torque
+        return np.zeros(3)
 
     ####################################################################################################################
     # Helper functions

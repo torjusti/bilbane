@@ -128,7 +128,7 @@ class SlotCarGame(arcade.Window):
     def update(self, _):
         # Instead of letting Arcade control the frame rate, we manually run at
         # 60 fps in order to prevent the frame rate from affecting the physics.
-        delta_time = 1 / 60
+        delta_time = 1 / 600
 
         self.global_time += delta_time
 
