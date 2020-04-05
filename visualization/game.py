@@ -66,7 +66,7 @@ class SlotCarGame(arcade.Window):
         self.explosions_list = arcade.SpriteList()
         for i, car in enumerate(self.track.cars):
             car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png')
-            car_sprite.scale = (CAR_LENGTH / car_sprite.height) * self.get_scaling_factor()
+            car_sprite.scale = (car.length / car_sprite.height) * self.get_scaling_factor()
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
             self.round_timer[car] = 0

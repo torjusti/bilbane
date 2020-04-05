@@ -8,7 +8,7 @@ DRIFT_TOL = 1.0e-10
 
 class RigidBodyCar(PointMassCar):
     # Car will crash if skid angle is larger than this value
-    MAX_SKID_ANGLE = np.Inf
+    MAX_SKID_ANGLE = np.pi / 2
 
     # Car properties
     length = None
@@ -44,7 +44,7 @@ class RigidBodyCar(PointMassCar):
         self.mag_width = 0.025
         #self.mag_coeff = 10.0
 
-        self.mu_kin = 0.5
+        self.mu_kin = 0.3
 
         ixx = self.mass * (self.width ** 2 + self.height ** 2) / 12
         iyy = self.mass * (self.length ** 2 + self.height ** 2) / 12
@@ -59,7 +59,7 @@ class RigidBodyCar(PointMassCar):
         self.pin_speed = 0.0
 
     def crash_check(self):
-        return np.abs(self.get_gamma_angle(self.pos_vec, self.phi)) > self.MAX_SKID_ANGLE
+        return self.is_crashed or np.abs(self.get_gamma_angle(self.pos_vec, self.phi)) > self.MAX_SKID_ANGLE
 
     def reset(self):
         """
@@ -144,7 +144,7 @@ class RigidBodyCar(PointMassCar):
         self.pin_speed = new_pin_speed
         self.phi = new_phi
         self.omega = new_omega
-        self.alpha = new_alpha
+        self.alpha = np.zeros(3)
         print("Gamma:", self.get_gamma_angle(self.pos_vec, self.phi))
         print("Beta:", self.get_beta_angle(self.pos_vec, self.phi))
         if isinstance(self.rail, model.TurnRail):
@@ -310,17 +310,7 @@ class RigidBodyCar(PointMassCar):
             f2_vec -- ndarray containing the components of the pin friction force acting on the car (in x-, y- and z-direction).
         """
 
-        l_vec = self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in)
-        L = np.linalg.norm(l_vec)
-        f2_vec_ = np.asarray([-self.mu_pin * L, 0, 0])
-
-        # TODO: Only use relevant component of the velocity for the check below.
-        if np.linalg.norm(vel_cg) < TOL:
-            return np.zeros_like(f2_vec_)
-
-        f2_vec = self.rotate(f2_vec_, self.get_gamma_angle(pos_cg, phi))
-
-        return f2_vec
+        pass
 
     def get_lateral_friction(self, pos_cg, vel_cg, phi, c_in):
         """
@@ -330,44 +320,7 @@ class RigidBodyCar(PointMassCar):
             f3_vec -- ndarray containing the components of the tire friction force acting on the car (in x-, y- and z-direction).
         """
 
-        f3_vec = np.zeros(3)
-        # TODO: Only use relevant component of the velocity for the check below.
-        if np.linalg.norm(vel_cg) < TOL:
-            return np.zeros_like(f3_vec)
-
-        if isinstance(self.rail, model.TurnRail):
-
-            rho_w = np.linalg.norm((self.rho_front_axel + self.rho_rear_axel) / 2)
-
-            pin_torque = self.get_pin_torque(pos_cg, vel_cg, phi, c_in)
-
-            sigma_skid = 1
-            if np.dot(pin_torque, np.asarray([0, 0, 1])) >= 0:
-                sigma_skid = -1
-
-            f_hjul_magnitude = np.linalg.norm(pin_torque) / rho_w
-            f_hjul = - f_hjul_magnitude * sigma_skid * np.asarray([0, 1, 0])
-
-            n_vec = self.get_normal_force(pos_cg, vel_cg, phi, c_in)
-            N = np.linalg.norm(n_vec)
-            skid_limit = self.mu_tire * N
-
-            f_kin = - self.mu_kin * N * sigma_skid * np.asarray([0,1,0])
-
-            if f_hjul_magnitude <= skid_limit:
-                f3_vec = -f_hjul
-            else:
-                f3_vec = -f_hjul - f_kin
-
-            #print("Pin torque:", pin_torque)
-            #print("Sigma skid:", sigma_skid)
-            #print("Skid limit:", skid_limit)
-            #print("f_wheel_magnitude:", f_hjul_magnitude)
-            #print("f_wheel:", f_hjul)
-            #print("f_kin:", f_kin)
-            #print("Lateral friction:", f3_vec)
-
-        return f3_vec
+        pass
 
     def get_magnet_force(self, pos_cg, vel_cg, phi, c_in):
         """
@@ -447,34 +400,7 @@ class RigidBodyCar(PointMassCar):
 
         #print("Lateral force:", l_vec)
         """
-        other_forces = (self.get_magnet_force(pos_cg, vel_cg, phi, c_in)
-                        + self.get_gravity_force(pos_cg, vel_cg, phi, c_in)
-                        + self.get_normal_force(pos_cg, vel_cg, phi, c_in)
-                        + self.get_thrust_force(pos_cg, vel_cg, phi, c_in) )
-                        #+ self.get_axle_friction(pos_cg, vel_cg, phi, c_in)
-                        #+ self.get_rolling_resistance(pos_cg, vel_cg, phi, c_in)
-                        #+ self.get_motor_brake_force(pos_cg, vel_cg, phi, c_in)
-                        #+ self.get_drag_force(pos_cg, vel_cg, phi, c_in))
-        other_forces_global = self.rotate(other_forces, -phi)
-
-        r_ccg = self.get_rail_center_to_cg(pos_cg)
-        e_ccg = r_ccg / np.linalg.norm(r_ccg)
-
-        other_forces_dotted = np.dot(other_forces_global, e_ccg)
-        #print("Other forces dotted:", other_forces_dotted)
-
-        tangential_unit_vector = self.rotate(e_ccg, np.pi / 2)
-        tangential_speed = np.dot(vel_cg, tangential_unit_vector)
-
-        centripetal_magnitude = self.mass * (tangential_speed ** 2) / np.linalg.norm(r_ccg)
-        lateral_pin_force_magnitude = (1 / np.cos(self.get_beta_angle(pos_cg, phi))) * (centripetal_magnitude + other_forces_dotted)
-
-        r_cp = self.get_rail_center_to_pin(pos_cg, phi)
-        e_cp = r_cp / np.linalg.norm(r_cp)
-
-        l_vec = - lateral_pin_force_magnitude * e_cp
-
-        return l_vec
+        pass
 
     def get_centrifugal_force(self, pos_cg, vel_cg, phi, c_in):
         """
@@ -557,6 +483,7 @@ class RigidBodyCar(PointMassCar):
 
             f_w = f_w_static
             if f_w_static > f_w_max:
+                print("KINETIC FRICTION")
                 f_w_kin = self.mu_kin * N
                 if f_w_static < 0:
                     f_w_kin *= -1
