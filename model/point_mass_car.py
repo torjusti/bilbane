@@ -355,7 +355,7 @@ class PointMassCar:
                     angle = -angle
                 rail_progress = angle * self.rail.get_lane_radius(self.lane) / self.rail.get_length(self.lane)
             elif isinstance(self.rail, model.StraightRail):
-                unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), self.rail.global_angle)
+                unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), -self.rail.global_angle)
                 rail_start_to_cg_vec = pos - rail_start_vec
                 rail_progress = np.linalg.norm(np.dot(unit_vec_along_track, rail_start_to_cg_vec)) / self.rail.get_length(self.lane)
 
