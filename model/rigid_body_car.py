@@ -215,8 +215,6 @@ class RigidBodyCar(PointMassCar):
             rail_progress (float) -- current rail progress (dimensionless number in range [0,1])
         """
 
-        # TODO: Update this
-
         rail_progress = None
 
         rail_start_vec = np.asarray([self.rail.global_x, self.rail.global_y, 0])
@@ -243,6 +241,62 @@ class RigidBodyCar(PointMassCar):
 
     ####################################################################################################################################################
     # Calculate forces
+
+    def get_total_force(self, pos, vel, phi, alpha, c_in):
+        """
+        Purpose: Calculate total force on car.
+        Args:
+            pos (ndarray, shape=[3,]) -- car position (in meters)
+            vel (ndarray, shape=[3,]) -- car velocity (in meters per second)
+            phi (float) -- car's yaw relative to global coordinate system (in radians)
+            c_in (float) -- controller input (dimensionless)
+        Returns:
+            total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
+        """
+
+        rolling_resistance = np.zeros(3) #self.get_rolling_resistance(pos, vel, phi, c_in)
+        motor_brake_force  = np.zeros(3) #self.get_motor_brake_force(pos, vel, phi, c_in)
+        axle_friction      = np.zeros(3) #self.get_axle_friction(pos, vel, phi, c_in)
+        magnet_force       = self.get_magnet_force(pos, vel, phi, c_in)
+        gravity_force      = self.get_gravity_force(pos, vel, phi, c_in)
+        normal_force       = self.get_normal_force(pos, vel, phi, c_in)
+        thrust_force       = self.get_thrust_force(pos, vel, phi, c_in)
+        drag_force         = np.zeros(3) #self.get_drag_force(pos, vel, phi, c_in)
+        coupled_force_sum  = self.get_sum_of_coupled_force(pos, vel, phi, c_in)
+        pin_friction       = np.zeros(3) #self.get_pin_friction(pos, vel, phi, c_in)
+        lateral_friction   = np.zeros(3) #self.get_lateral_friction(pos, vel, phi, c_in)
+        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi, c_in)
+
+
+        total_force_vec = ( magnet_force
+                          + gravity_force
+                          + normal_force
+                          + thrust_force
+                          + lateral_pin_force
+                          + lateral_friction
+                          + pin_friction
+                          + axle_friction
+                          + rolling_resistance
+                          + motor_brake_force
+                          + drag_force )
+
+        """
+        #if c_in != 0:
+        print("Rolling resitance:", rolling_resistance, "\n",
+              "Motor brake force:", motor_brake_force, "\n",
+              "Axle friction    :", axle_friction, "\n",
+              "Pin friction     :", pin_friction, "\n",
+              "Lateral friction :", lateral_friction, "\n",
+              "Magnet force     :", magnet_force, "\n",
+              "Gravity force    :", gravity_force, "\n",
+              "Normal force     :", normal_force, "\n",
+              "Thrust force     :", thrust_force, "\n",
+              "Drag force       :", drag_force, "\n",
+              "Lateral pin force:", lateral_pin_force, "\n",
+              "Total force:", total_force_vec, "\n")
+        """
+
+        return total_force_vec
 
     def get_pin_friction(self, pos_cg, vel_cg, phi, c_in):
         """

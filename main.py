@@ -41,7 +41,7 @@ def main():
     track = model.Track(rails, None)
 
     cars = [
-        RigidBodyCar(model.Rail.Lane1, track, key_control=True),
+        PointMassCar(model.Rail.Lane1, track, key_control=True),
         #PointMassCar(model.Rail.Lane2, track),
     ]
 

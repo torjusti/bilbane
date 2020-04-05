@@ -25,6 +25,7 @@ class PointMassCar:
     vel_vec = None  # Velocity of the car in the global coordinate system.
     phi = None      # Yaw of the car in the global coordinate system.
     gamma = None    # Angle between x-axis and x'-axis
+    alpha = None    # Angular acceleration
 
     # System variables
     lane = None  # Lane in which the car is driving.
@@ -63,6 +64,7 @@ class PointMassCar:
         self.vel_vec = np.zeros(3)
         self.phi = 0.0
         self.gamma = 0.0
+        self.alpha = 0.0
 
         self.lane  = lane
         self.track = track
@@ -223,15 +225,16 @@ class PointMassCar:
         old_pos_vec = self.pos_vec
         old_vel_vec = self.vel_vec
         old_phi = self.phi
+        old_alpha = self.alpha
         old_c_in = self.controller_input
 
         # Calculate new state
-        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
+        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_alpha, old_c_in, delta_time)
         new_phi = self.get_phi(new_pos_vec)
 
         return new_pos_vec, new_vel_vec, new_phi
 
-    def get_new_pos_and_vel(self, old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time):
+    def get_new_pos_and_vel(self, old_pos_vec, old_vel_vec, old_phi, old_alpha, old_c_in, delta_time):
         """
         Purpose: Use a numerical method to find new position and velocity, given the car's old state.
         Args:
@@ -247,7 +250,7 @@ class PointMassCar:
 
         old_y = np.concatenate((old_pos_vec, old_vel_vec), axis=None)
         #new_y = rk4_step(old_y, old_c_in, delta_time, self.dxdt, self.dvdt)
-        new_y = self.newmark_beta_step(old_y, old_phi, old_c_in, delta_time)
+        new_y = self.newmark_beta_step(old_y, old_phi, old_alpha, old_c_in, delta_time)
 
         print("New position:", new_y[:3])
         print("New velocity:", new_y[3:])
@@ -278,11 +281,13 @@ class PointMassCar:
 
         return phi
 
-    def newmark_beta_step(self, old_y, old_phi, old_c_in, delta_time):
+    def newmark_beta_step(self, old_y, old_phi, old_alpha, old_c_in, delta_time):
         """
         Purpose: Calculate new state vector using the newmark-beta method.
         Args:
             old_y (ndarray, shape=[6,]) -- old state vector containing position (first three components) and velocity (last three components)
+            old_phi (float) -- old yaw of the car
+            old_alpha (float) -- old angular acceleration of the car
             old_c_in (float) -- controller input at current time step
             delta_time (float) -- size of time step
         Returns:
@@ -291,7 +296,7 @@ class PointMassCar:
         old_pos_vec = old_y[:3]
         old_vel_vec = old_y[3:]
 
-        new_acc_vec_local = self.get_total_force(old_pos_vec, old_vel_vec, old_phi, old_c_in) / self.mass
+        new_acc_vec_local = self.get_total_force(old_pos_vec, old_vel_vec, old_phi, old_alpha, old_c_in) / self.mass
         new_acc_vec_global = self.rotate(new_acc_vec_local, -old_phi)
         new_vel_vec_global = old_vel_vec + new_acc_vec_global * delta_time
         new_pos_vec_global = old_pos_vec + old_vel_vec * delta_time + .5 * new_acc_vec_global * (delta_time ** 2)
@@ -317,10 +322,11 @@ class PointMassCar:
         Returns:
             global_acc_vec (ndarray, shape=[3,]) -- temporal derivative of velocity vector
         """
-        phi = self.get_phi(y[:3])
-        local_acc_vec = self.get_total_force(y[:3], y[3:], phi, c_in) / self.mass
-        global_acc_vec = self.rotate(local_acc_vec, -phi)
-        return global_acc_vec
+        pass
+        #phi = self.get_phi(y[:3])
+        #local_acc_vec = self.get_total_force(y[:3], y[3:], phi, c_in) / self.mass
+        #global_acc_vec = self.rotate(local_acc_vec, -phi)
+        #return global_acc_vec
 
     def get_rail_progress(self, pos, vel, phi, delta_time):
         """
@@ -359,13 +365,14 @@ class PointMassCar:
     # ---------------------------------------------------------------------------
     # Calculate forces
 
-    def get_total_force(self, pos, vel, phi, c_in):
+    def get_total_force(self, pos, vel, phi, alpha, c_in):
         """
         Purpose: Calculate total force on car.
         Args:
             pos (ndarray, shape=[3,]) -- car position (in meters)
             vel (ndarray, shape=[3,]) -- car velocity (in meters per second)
             phi (float) -- car's yaw relative to global coordinate system (in radians)
+            alpha (float) -- car's angular acceleration at the previous time step (in radians per square second)
             c_in (float) -- controller input (dimensionless)
         Returns:
             total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
