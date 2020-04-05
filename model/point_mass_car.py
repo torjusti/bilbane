@@ -4,7 +4,7 @@ from model.rk4 import rk4_step
 
 G_ACC = 9.81
 RHO   = 1.2  # density of air
-TOL = 0.003
+TOL = 0.001
 
 
 
@@ -102,12 +102,6 @@ class PointMassCar:
         self.is_crashed = self.crash_check()
         if self.is_crashed:
             print("Ohhhh noooo")
-
-        # Make velocity tangential to track
-        #if self.track_locked:
-        #speed = np.linalg.norm(self.vel_vec)
-        #local_vel_vec = np.asarray([speed, 0, 0])
-        #self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         # Update state given result of crash check
         if self.is_crashed and self.crash_time > 1:
@@ -220,6 +214,11 @@ class PointMassCar:
             new_vel_vec (ndarray, shape=[3,]) -- new car velocity (in meters per second).
             new_phi (float) -- new yaw of car (in radians).
         """
+
+        # Make sure velocity is always in the x-direction
+        speed = np.linalg.norm(self.vel_vec)
+        local_vel_vec = np.asarray([speed, 0, 0])
+        self.vel_vec = self.rotate(local_vel_vec, -self.phi)
 
         # Save old state
         old_pos_vec = self.pos_vec
@@ -350,16 +349,21 @@ class PointMassCar:
                 rail_center_vec = self.rail.get_rail_center()
                 cent_to_start_vec = rail_start_vec - rail_center_vec
                 cent_to_cg_vec = pos - rail_center_vec
-                angle = np.arctan2(cent_to_cg_vec[1], cent_to_cg_vec[0]) - np.arctan2(cent_to_start_vec[1], cent_to_start_vec[0])
+                angle = np.arctan2(cent_to_cg_vec[1], cent_to_cg_vec[0]) - np.arctan2(cent_to_start_vec[1],
+                                                                                      cent_to_start_vec[0])
                 if angle < 0:
                     angle = -angle
                 rail_progress = angle * self.rail.get_lane_radius(self.lane) / self.rail.get_length(self.lane)
             elif isinstance(self.rail, model.StraightRail):
                 unit_vec_along_track = self.rotate(np.asarray([1, 0, 0]), -self.rail.global_angle)
                 rail_start_to_cg_vec = pos - rail_start_vec
-                rail_progress = np.linalg.norm(np.dot(unit_vec_along_track, rail_start_to_cg_vec)) / self.rail.get_length(self.lane)
+                rail_progress = np.linalg.norm(
+                    np.dot(unit_vec_along_track, rail_start_to_cg_vec)) / self.rail.get_length(self.lane)
 
         rail_progress = min(rail_progress, 1)
+
+        print(rail_progress)
+
         return rail_progress
 
     # ---------------------------------------------------------------------------
@@ -378,16 +382,16 @@ class PointMassCar:
             total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
         """
 
-        rolling_resistance = np.zeros(3) #self.get_rolling_resistance(pos, vel, phi, c_in)
-        motor_brake_force  = np.zeros(3) #self.get_motor_brake_force(pos, vel, phi, c_in)
-        axle_friction      = np.zeros(3) #self.get_axle_friction(pos, vel, phi, c_in)
-        pin_friction       = np.zeros(3) #self.get_pin_friction(pos, vel, phi, c_in)
-        lateral_friction   = np.zeros(3) #self.get_lateral_friction(pos, vel, phi, c_in)
+        rolling_resistance = self.get_rolling_resistance(pos, vel, phi, c_in)
+        motor_brake_force  = self.get_motor_brake_force(pos, vel, phi, c_in)
+        axle_friction      = self.get_axle_friction(pos, vel, phi, c_in)
+        pin_friction       = self.get_pin_friction(pos, vel, phi, c_in)
+        lateral_friction   = self.get_lateral_friction(pos, vel, phi, c_in)
         magnet_force       = self.get_magnet_force(pos, vel, phi, c_in)
         gravity_force      = self.get_gravity_force(pos, vel, phi, c_in)
         normal_force       = self.get_normal_force(pos, vel, phi, c_in)
         thrust_force       = self.get_thrust_force(pos, vel, phi, c_in)
-        drag_force         = np.zeros(3) #self.get_drag_force(pos, vel, phi, c_in)
+        drag_force         = self.get_drag_force(pos, vel, phi, c_in)
         lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi, c_in)
 
 
