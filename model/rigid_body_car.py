@@ -28,7 +28,7 @@ class RigidBodyCar(PointMassCar):
 
     omega = None
 
-    def __init__(self, lane, track, key_control=False, track_locked=False):
+    def __init__(self, lane, track, key_control=False, track_locked=True):
         super().__init__(lane, track, key_control, track_locked)
         self.is_point_mass = False
 
@@ -53,6 +53,7 @@ class RigidBodyCar(PointMassCar):
         self.inertia = np.asarray([[ixx, 0, 0], [0, iyy, 0], [0, 0, izz]])
 
         self.omega = 0.0
+        self.alpha = np.zeros(3)
         self.pos_vec = -self.rho_pin + np.asarray([0, self.lane * model.Rail.LANE_LANE_DIST / 2, 0])
         self.phi = 0.0 #self.get_phi(self.pos_vec) # TODO: This has been added for debugging purposes. Should not be here in final code.
         self.pin_speed = 0.0
@@ -76,6 +77,7 @@ class RigidBodyCar(PointMassCar):
         self.pin_speed = 0.0
         self.phi = 0.0 #self.get_phi(self.pos_vec) # TODO: This has been added for debugging purposes. Should not be here in final code.
         self.omega = 0.0
+        self.alpha = np.zeros(3)
 
         self.rail = self.track.rails[0]
         self.rail_progress = 0
@@ -590,7 +592,7 @@ class RigidBodyCar(PointMassCar):
         pin_friction, _, lateral_pin_force = self.get_coupled_forces(pos_cg, vel_cg, phi, alpha, c_in)
 
         pin_torque = np.cross(self.rho_pin, (pin_friction + lateral_pin_force))
-        #print("Pin torque:", pin_torque)
+        print("Pin torque:", pin_torque)
         return pin_torque
 
     def get_wheel_torque(self, pos_cg, vel_cg, phi, alpha, c_in):
@@ -607,8 +609,8 @@ class RigidBodyCar(PointMassCar):
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
         _, wheel_friction, _ = self.get_coupled_forces(pos_cg, vel_cg, phi, alpha, c_in)
         wheel_torque = np.cross(rho_wheel, wheel_friction)
-        #print("Wheel torque:", wheel_torque)
-        return np.zeros(3)
+        print("Wheel torque:", wheel_torque)
+        return wheel_torque
 
     ####################################################################################################################
     # Helper functions
