@@ -97,7 +97,8 @@ class PointMassCar:
         Returns:
             void
         """
-
+        print("New time step")
+        print(self.crash_time)
         # Crash check
         self.is_crashed = self.crash_check()
         if self.is_crashed:
@@ -105,14 +106,19 @@ class PointMassCar:
 
         # Update state given result of crash check
         if self.is_crashed and self.crash_time > 1:
+            print("Calling reset")
             self.reset()
         elif self.is_crashed:
+            print("Calling crash update")
+            print(self.is_crashed)
             self.crash_update(delta_time)
+            print(self.is_crashed)
         else:
+            print("Calling physics update")
             self.physics_update(delta_time)
 
     def crash_check(self):
-        return np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi, self.controller_input)) >= self.MAX_CENTRIFUGAL_FORCE
+        return self.is_crashed or np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi, self.controller_input)) >= self.MAX_CENTRIFUGAL_FORCE
 
     def reset(self):
         """
