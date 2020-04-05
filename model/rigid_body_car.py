@@ -28,7 +28,7 @@ class RigidBodyCar(PointMassCar):
 
     omega = None
 
-    def __init__(self, lane, track, key_control=False, track_locked=True):
+    def __init__(self, lane, track, key_control=False, track_locked=False):
         super().__init__(lane, track, key_control, track_locked)
         self.is_point_mass = False
 
@@ -42,6 +42,7 @@ class RigidBodyCar(PointMassCar):
         self.rho_mag = np.asarray([-0.032, 0, 0])
 
         self.mag_width = 0.025
+        #self.mag_coeff = 10.0
 
         self.mu_kin = 0.5
 
@@ -90,7 +91,7 @@ class RigidBodyCar(PointMassCar):
         Returns:
             void
         """
-        new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega = self.get_physics_state(delta_time)
+        new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega, new_alpha = self.get_physics_state(delta_time)
 
         # Overwrite new_pos_vec if locked to track
         if self.track_locked:
@@ -141,6 +142,7 @@ class RigidBodyCar(PointMassCar):
         self.pin_speed = new_pin_speed
         self.phi = new_phi
         self.omega = new_omega
+        self.alpha = new_alpha
         print("Gamma:", self.get_gamma_angle(self.pos_vec, self.phi))
         print("Beta:", self.get_beta_angle(self.pos_vec, self.phi))
         if isinstance(self.rail, model.TurnRail):
@@ -164,20 +166,21 @@ class RigidBodyCar(PointMassCar):
         old_vel_vec = self.vel_vec
         old_phi = self.phi
         old_omega = self.omega
+        old_alpha = self.alpha
         old_c_in = self.controller_input
         old_pin_position = self.get_pin_position(old_pos_vec, old_phi)
 
         # Calculate new state
-        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_c_in, delta_time)
+        new_pos_vec, new_vel_vec = self.get_new_pos_and_vel(old_pos_vec, old_vel_vec, old_phi, old_alpha, old_c_in, delta_time)
         #new_phi = self.get_phi(new_pos_vec)
         #new_omega = 0
-        new_phi, new_omega = self.get_phi_and_omega(old_pos_vec, old_vel_vec, old_phi, old_omega, old_c_in, delta_time)
+        new_phi, new_omega, new_alpha = self.get_new_phi_omega_and_alpha(old_pos_vec, old_vel_vec, old_phi, old_omega, old_alpha, old_c_in, delta_time)
         new_pin_position = self.get_pin_position(new_pos_vec, new_phi)
         new_pin_speed = np.linalg.norm(new_pin_position - old_pin_position) / delta_time
 
-        return new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega
+        return new_pos_vec, new_vel_vec, new_pin_speed, new_phi, new_omega, new_alpha
 
-    def get_phi_and_omega(self, pos_cg, vel_cg, old_phi, old_omega, c_in, delta_time):
+    def get_new_phi_omega_and_alpha(self, pos_cg, vel_cg, old_phi, old_omega, old_alpha, c_in, delta_time):
         """
         Purpose: Get new state of the car, according to the physics model.
         Args:
@@ -202,7 +205,7 @@ class RigidBodyCar(PointMassCar):
         print("Angular_acc:", angular_acc)
         print("New omega:", new_omega)
         print("New phi:", new_phi)
-        return new_phi, new_omega
+        return new_phi, new_omega, angular_acc
 
     def get_rail_progress(self, pos, vel, phi, delta_time):
         """
@@ -262,11 +265,9 @@ class RigidBodyCar(PointMassCar):
         normal_force       = self.get_normal_force(pos, vel, phi, c_in)
         thrust_force       = self.get_thrust_force(pos, vel, phi, c_in)
         drag_force         = np.zeros(3) #self.get_drag_force(pos, vel, phi, c_in)
-        coupled_force_sum  = self.get_sum_of_coupled_force(pos, vel, phi, c_in)
-        pin_friction       = np.zeros(3) #self.get_pin_friction(pos, vel, phi, c_in)
-        lateral_friction   = np.zeros(3) #self.get_lateral_friction(pos, vel, phi, c_in)
-        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi, c_in)
+        pin_friction, lateral_friction, lateral_pin_force = self.get_coupled_forces(pos, vel, phi, alpha, c_in)
 
+        # TODO: Make friction forces zero if velocity is too small.
 
         total_force_vec = ( magnet_force
                           + gravity_force
@@ -280,7 +281,7 @@ class RigidBodyCar(PointMassCar):
                           + motor_brake_force
                           + drag_force )
 
-        """
+
         #if c_in != 0:
         print("Rolling resitance:", rolling_resistance, "\n",
               "Motor brake force:", motor_brake_force, "\n",
@@ -294,7 +295,7 @@ class RigidBodyCar(PointMassCar):
               "Drag force       :", drag_force, "\n",
               "Lateral pin force:", lateral_pin_force, "\n",
               "Total force:", total_force_vec, "\n")
-        """
+
 
         return total_force_vec
 
@@ -489,6 +490,86 @@ class RigidBodyCar(PointMassCar):
             cent_vec = -self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
+
+    def get_coupled_forces(self, pos_cg, vel_cg, phi, alpha, c_in):
+        """
+        Purpose: Calculate the coupled forces pin friction force, lateral friction force and lateral pin force.
+        Args:
+            pos_cg:
+            vel_cg:
+            phi:
+            alpha:
+            c_in:
+        Returns:
+            f_p_vec
+            f_w_vec
+            l_vec
+        """
+
+        f_p_vec, f_w_vec, l_vec = np.zeros(3), np.zeros(3), np.zeros(3)
+
+        if isinstance(self.rail, model.TurnRail):
+            r_cp_global = self.get_rail_center_to_pin(pos_cg, phi)
+            r_cp_local = self.rotate(r_cp_global, phi)
+            e_cp = r_cp_local / np.linalg.norm(r_cp_local)
+
+            r_ccg_global = self.get_rail_center_to_cg(pos_cg)
+            r_ccg_local = self.rotate(r_ccg_global, phi)
+            e_ccg = r_ccg_local / np.linalg.norm(r_ccg_local)
+
+            gamma = self.get_gamma_angle(pos_cg, phi)
+            e_xprime = self.rotate(np.asarray([1,0,0]), gamma)
+
+            e_x = np.asarray([1, 0, 0])
+            e_y = np.asarray([0, 1, 0])
+            e_z = np.asarray([0, 0, 1])
+
+            rho_p = np.linalg.norm(self.rho_pin)
+            rho_w = np.linalg.norm((self.rho_front_axel + self.rho_rear_axel) / 2)
+
+            e_cp_minus_mu_e_xprime = e_cp - self.mu_pin * e_xprime
+            ksi = rho_p * np.cross(e_x, e_cp_minus_mu_e_xprime) / np.dot(e_ccg, e_cp_minus_mu_e_xprime)
+
+            ksi_dot_e_z = np.dot(ksi, e_z)
+            e_y_dot_e_ccg = np.dot(e_y, e_ccg)
+
+            I_alpha = np.dot(self.inertia, alpha)[2]
+
+            other_forces = ( self.get_magnet_force(pos_cg, vel_cg, phi, c_in)
+                           + self.get_gravity_force(pos_cg, vel_cg, phi, c_in)
+                           + self.get_normal_force(pos_cg, vel_cg, phi, c_in)
+                           + self.get_thrust_force(pos_cg, vel_cg, phi, c_in)
+                           + self.get_drag_force(pos_cg, vel_cg, phi, c_in)   )
+            other_forces_dot_e_ccg = np.dot(other_forces, e_ccg)
+
+            tangential_unit_vector = self.rotate(e_ccg, np.pi / 2)
+            tangential_speed = np.dot(vel_cg, tangential_unit_vector)
+            centripetal_magnitude = self.mass * (tangential_speed ** 2) / np.linalg.norm(r_ccg_local)
+
+            f_w_static = (I_alpha + (centripetal_magnitude + other_forces_dot_e_ccg)*ksi_dot_e_z) / (rho_w - e_y_dot_e_ccg*ksi_dot_e_z)
+
+            N = np.linalg.norm(self.get_normal_force(pos_cg, vel_cg, phi, c_in))
+
+            f_w_max = self.mu_tire * N
+
+            f_w = f_w_static
+            if f_w_static > f_w_max:
+                f_w_kin = self.mu_kin * N
+                if f_w_static < 0:
+                    f_w_kin *= -1
+                f_w = f_w_kin
+
+            f_w_vec = f_w * e_y
+
+            L = (-centripetal_magnitude - f_w*e_y_dot_e_ccg - other_forces_dot_e_ccg) / np.dot(e_cp_minus_mu_e_xprime, e_ccg)
+
+            l_vec = L * e_cp
+
+            f_p_vec = -self.mu_pin * L * e_xprime
+        else:
+            pass
+
+        return f_p_vec, f_w_vec, l_vec
 
     ####################################################################################################################
     # Calculate momenta
