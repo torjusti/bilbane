@@ -81,7 +81,7 @@ class PointMassCar:
         self.drag_coeff  = 0.35       # dimensionless
         self.mag_coeff   = 1.0        # N
         self.motor_eta   = .95        # dimensionless
-        self.mu_tire     = .9         # dimensionless
+        self.mu_tire     = .4327         # dimensionless
         self.mu_pin      = .04        # dimensionless
         self.mu_roll     = .01        # dimensionless
         self.mu_axle     = .1         # N

@@ -197,7 +197,7 @@ class RigidBodyCar(PointMassCar):
             new_phi (float) -- new yaw of car (in radians).
             new_omega (float) -- new angular velocity of the car (in radians per second).
         """
-        total_torque = self.get_pin_torque(pos_cg, vel_cg, old_phi, c_in) + self.get_wheel_torque(pos_cg, vel_cg, old_phi, c_in)
+        total_torque = self.get_pin_torque(pos_cg, vel_cg, old_phi, old_alpha, c_in) + self.get_wheel_torque(pos_cg, vel_cg, old_phi, old_alpha, c_in)
         angular_acc = np.dot(np.linalg.inv(self.inertia), total_torque)
         new_omega = old_omega + angular_acc[2] * delta_time
         new_phi = old_phi + old_omega * delta_time + .5 * angular_acc[2] * (delta_time**2)
@@ -252,6 +252,7 @@ class RigidBodyCar(PointMassCar):
             pos (ndarray, shape=[3,]) -- car position (in meters)
             vel (ndarray, shape=[3,]) -- car velocity (in meters per second)
             phi (float) -- car's yaw relative to global coordinate system (in radians)
+            alpha (float) -- angular acceleration
             c_in (float) -- controller input (dimensionless)
         Returns:
             total_force_vec (ndarray, shape=[3,]) -- force vector acting on the car (in Newton)
@@ -574,7 +575,7 @@ class RigidBodyCar(PointMassCar):
     ####################################################################################################################
     # Calculate momenta
 
-    def get_pin_torque(self, pos_cg, vel_cg, phi, c_in):
+    def get_pin_torque(self, pos_cg, vel_cg, phi, alpha, c_in):
         """
         Purpose: Calculate the torque acting on the car due to forces with point of attack at the car's pin.
         Args:
@@ -585,11 +586,14 @@ class RigidBodyCar(PointMassCar):
         Returns:
             pin_torque (ndarray, shape=[3,]) -- torque acting on car due to forces with point of attack at the car's pin.
         """
-        pin_torque = np.cross(self.rho_pin, (self.get_lateral_pin_force(pos_cg, vel_cg, phi, c_in)))# + self.get_pin_friction(pos_cg, vel_cg, phi, c_in)))
+
+        pin_friction, _, lateral_pin_force = self.get_coupled_forces(pos_cg, vel_cg, phi, alpha, c_in)
+
+        pin_torque = np.cross(self.rho_pin, (pin_friction + lateral_pin_force))
         #print("Pin torque:", pin_torque)
         return pin_torque
 
-    def get_wheel_torque(self, pos_cg, vel_cg, phi, c_in):
+    def get_wheel_torque(self, pos_cg, vel_cg, phi, alpha, c_in):
         """
         Purpose: Calculate the torque acting on the car due to forces with point of attack at the car's wheels.
         Args:
@@ -601,8 +605,8 @@ class RigidBodyCar(PointMassCar):
             wheel_torque (ndarray, shape=[3,]) -- torque acting on the car due to forces with point of attack at the car's wheels.
         """
         rho_wheel = (self.rho_front_axel + self.rho_rear_axel) / 2
-        lat_fric_vec = self.get_lateral_friction(pos_cg, vel_cg, phi, c_in)
-        wheel_torque = np.cross(rho_wheel, lat_fric_vec)
+        _, wheel_friction, _ = self.get_coupled_forces(pos_cg, vel_cg, phi, alpha, c_in)
+        wheel_torque = np.cross(rho_wheel, wheel_friction)
         #print("Wheel torque:", wheel_torque)
         return np.zeros(3)
 
