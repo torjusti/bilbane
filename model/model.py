@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import warnings
 
 
 class Rail:
@@ -78,7 +79,7 @@ class Track:
         self.cars = cars
 
         if not self.initialize_rail_coordinates():
-            raise ValueError('Track did not form a loop')
+            warnings.warn('Track did not form a loop')
 
         self.resistances = np.zeros(2)
         for rail in self.rails:

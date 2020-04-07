@@ -8,7 +8,6 @@ RAIL_WIDTH = model.StraightRail.RAIL_WIDTH
 # RADIUS_EXTRA plus half the RAIL_WIDTH is the radius of a radius-1 turn.
 RADIUS_EXTRA = 0.214 - RAIL_WIDTH
 
-
 class Straight(model.StraightRail):
     length = 0.350  # meter
 

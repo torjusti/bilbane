@@ -4,17 +4,18 @@ from ai.controller import SlotCarEnv, evaluate
 from ai.ddpg_agent import DDPGAgent
 from ai.noise import OrnsteinUhlenbeckNoise
 from ai.replay_buffer import ReplayBuffer
+from ai.utils import get_training_track
 from ai.td3_agent import TD3Agent
+from ai.sac_agent import SACAgent
 from model.car import Car
 from model import model
-from model import standard_tracks as st
 
 # Name of the current study for Optuna.
-STUDY_NAME = 'td3'
+STUDY_NAME = 'sac'
 # Progress database file for Optuna.
-DB_FILE = 'sqlite:///td3.db'
+DB_FILE = 'sqlite:///sac.db'
 # The agent type to optimize.
-AGENT_TYPE = 'td3'
+AGENT_TYPE = 'sac'
 # Number of episodes to train for per trial.
 EPISODES = 100
 # The number of steps in each episode.
@@ -23,29 +24,6 @@ EPISODE_LENGTH = 1000
 CHECKPOINT = 10
 
 # Note: Hyperparameters from `controller` related to state encoding still affect the training here.
-
-def get_training_track():
-    """ Creates a simple track for training on. """
-    rails = [
-        st.Straight(),
-        st.Straight(),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Straight(),
-        st.Straight(),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-        st.Curve(2, 45),
-    ]
-
-    track = model.Track(rails, None)
-    car = Car(model.Rail.Lane2, track)
-    track.cars = [car]
-
-    return track, car
 
 
 def objective(trial):
@@ -58,15 +36,17 @@ def objective(trial):
     actor_lr = trial.suggest_loguniform('actor-lr', 1e-4, 1e-1)
     critic_lr = trial.suggest_loguniform('critic-lr', 1e-4, 1e-1)
     tau = trial.suggest_loguniform('tau', 1e-4, 1e-1)
-    noise_dt = trial.suggest_uniform('noise', 1e-2, 1)
 
-    noise = OrnsteinUhlenbeckNoise(1, dt=noise_dt)
+    noise = OrnsteinUhlenbeckNoise(1)
 
     if AGENT_TYPE == 'ddpg':
-        agent = DDPGAgent(env.state.shape[0], 1, actor_lr=actor_lr, critic_lr=critic_lr, tau=tau)
+        agent = DDPGAgent
     elif AGENT_TYPE == 'td3':
-        agent = TD3Agent(env.state.shape[0], 1, actor_lr=actor_lr, critic_lr=critic_lr, tau=tau)
+        agent = TD3Agent
+    elif AGENT_TYPE == 'sac':
+        agent = SACAgent
 
+    agent = agent(env.state.shape[0], 1, actor_lr=actor_lr, critic_lr=critic_lr, tau=tau)
     replay_buffer = ReplayBuffer()
 
     # We use the best evaluation as the returned score. This is
@@ -80,7 +60,11 @@ def objective(trial):
         noise.reset()
 
         for _ in range(EPISODE_LENGTH):
-            action = (agent.get_action(state) + noise()).clip(0, 1)
+            if AGENT_TYPE == 'sac':
+                action = agent.get_action(state)
+            else:
+                action = (agent.get_action(state) + noise()).clip(0, 1)
+
             next_state, reward, done = env.step(action.item())
             replay_buffer.add(state, action, next_state, reward, done)
             episode_reward += reward
