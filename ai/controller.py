@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import os
+import torch
 
 from tensorboardX import SummaryWriter
 from ai.noise import OrnsteinUhlenbeckNoise
@@ -26,7 +27,7 @@ LOAD_MODEL = True
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'sac'
 # Batch size to use when training.
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 # Interval at which the model should be saved.
 CHECKPOINT = 10
 # Number of episodes to train for.
@@ -34,7 +35,11 @@ EPISODES = 500
 # Number of timesteps in an episode.
 EPISODE_LENGTH = 1000
 # If Ornstein-Uhlenbeck noise should be used with SAC.
-SAC_USE_OU = True
+SAC_USE_OU = False
+# Number of steps to sample randomly before training starts.
+RANDOM_STEPS = 1000
+# Set to `True` if the agent should always have fixed-length episodes.
+FIXED_EPISODES = False
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
@@ -46,6 +51,7 @@ def get_state(car):
 
     rail = car.rail
 
+    # Add information about the upcoming rail dimensions.
     for _ in range(1 + RAIL_LOOKAHEAD):
         rail_information.extend([
             rail.radius if isinstance(rail, model.TurnRail) else 0,
@@ -81,12 +87,23 @@ class SlotCarEnv:
         """ Returns a vector describing the position and velocity of the controlled car. """
         return get_state(self.car)
 
-    def step(self, action):
+    def step(self, action, rescale_action=False):
         """ Get an action from the agent for one time-step of the simulation. """
+        if rescale_action:
+            action = 0.5 * (action + 1)
+
         self.car.controller_input = action
 
         # Note: The actual game can run at a much finer granularity.
         self.track.step(DELTA_TIME)
+
+        # If we do not have fixed-length episodes, the episode
+        # is finished when the car crashes. If this is not the
+        # case, we instead put the car back on the track start.
+        if not FIXED_EPISODES:
+            done = self.car.is_crashed
+        else:
+            done = False
 
         if self.car.is_crashed:
             reward = -1000
@@ -94,22 +111,24 @@ class SlotCarEnv:
         else:
             reward = np.linalg.norm(self.car.vel_vec).item()
 
-        # We never return done, opting to instead put the car back on the track.
-        # This has the benefit of adding a few extra negative reinforcement
-        # samples, since the same noise generator is used after restarting.
-        return self.state, reward, False
+        return self.state, reward, done
 
 
 class AIController:
     def __init__(self, agent, track, car):
-        """ Used for controlling `car` on `track` using a DDPG agent. """
+        """ Used for controlling `car` on `track` using a given agent. """
         self.agent = agent
         self.track = track
         self.car = car
 
     def step(self):
         """ Get an action for one time-step of the simulation. """
-        return self.agent.get_action(get_state(self.car)).item()
+        action = self.agent.get_action(get_state(self.car)).item()
+
+        if isinstance(self.agent, SACAgent):
+            action = 0.5 * (action + 1)
+
+        return action
 
 
 def evaluate(env, agent, episode_length=EPISODE_LENGTH):
@@ -123,7 +142,7 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
         else:
             action = agent.get_action(state).item()
 
-        next_state, reward, done = env.step(action)
+        next_state, reward, done = env.step(action, rescale_action=isinstance(agent, SACAgent))
         total_reward += reward
         state = next_state
 
@@ -133,7 +152,8 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
     return total_reward
 
 def get_random_rail():
-    if random.random() >= 0.5:
+    """ Get a randomly generated rail. """
+    if random.random() <= 0.25:
         # Generate a straight rail.
         return Straight(random.choice(['std', 'half', 'quarter', 'short']))
     else:
@@ -142,16 +162,16 @@ def get_random_rail():
             model.TurnRail.Left, model.TurnRail.Right]))
 
 def get_controller(track, car, random_training_track=False):
+    """ Returns a controller which can be used on the track. The model
+    is either loaded from file, or an entirely new model is trained. """
     validation_env = SlotCarEnv(track, car)
+    training_env = validation_env
 
     if random_training_track:
         training_track = model.Track([get_random_rail()], None)
-        car = Car(model.Rail.Lane1, training_track)
+        car = Car(car.lane, training_track)
         training_track.cars = [car]
-    else:
-        training_track = track
-
-    training_env = SlotCarEnv(training_track, car)
+        training_env = SlotCarEnv(training_track, car)
 
     noise = OrnsteinUhlenbeckNoise(1)
 
@@ -161,12 +181,12 @@ def get_controller(track, car, random_training_track=False):
         agent = TD3Agent
     elif AGENT_TYPE == 'sac':
         agent = SACAgent
-        noise = OrnsteinUhlenbeckNoise(1, min_sigma=0.3)
 
     agent = agent(training_env.state.shape[0], 1)
 
     if os.path.exists('actor.pth') and LOAD_MODEL:
         agent.load_model('actor.pth')
+        print('Evaluation:', evaluate(validation_env, agent))
         return AIController(agent, track, car)
 
     writer = SummaryWriter(flush_secs=10)
@@ -174,6 +194,8 @@ def get_controller(track, car, random_training_track=False):
     replay_buffer = ReplayBuffer()
 
     for episode in range(EPISODES):
+        # Reset the rails on the training track if training
+        # the agent on progressively generated tracks.
         if random_training_track:
             training_track.rails = [get_random_rail()]
             training_track.initialize_rail_coordinates()
@@ -183,24 +205,32 @@ def get_controller(track, car, random_training_track=False):
         noise.reset()
 
         for step in range(EPISODE_LENGTH):
-            if AGENT_TYPE == 'sac' and not SAC_USE_OU:
+            # We sample random actions for some steps before training.
+            # This helps exploration early in the training process.
+            if len(replay_buffer) < RANDOM_STEPS:
+                action = torch.rand(1).numpy()
+            elif AGENT_TYPE == 'sac' and not SAC_USE_OU:
                 # For SAC, no exploration noise is used.
                 action = agent.get_action(state)
             else:
                 # Get deterministic action and add exploration noise.
                 action = (agent.get_action(state) + noise(episode * EPISODE_LENGTH + step)).clip(0, 1)
 
-            next_state, reward, done = training_env.step(action.item())
+            next_state, reward, done = training_env.step(action.item(),
+                rescale_action=isinstance(agent, SACAgent))
+
             replay_buffer.add(state, action, next_state, reward, done)
             episode_reward += reward
             state = next_state
 
+            # Add more rails to the track, such that there are always at
+            # least 10 unseen rails towards the end of the track.
             if random_training_track and len(training_track.rails) - \
                     training_track.rails.index(car.rail) <= 10:
                 training_track.rails.append(get_random_rail())
                 training_track.initialize_rail_coordinates()
 
-            if len(replay_buffer) >= BATCH_SIZE:
+            if len(replay_buffer) >= max(RANDOM_STEPS, BATCH_SIZE):
                 agent.update(replay_buffer.sample(BATCH_SIZE))
 
             if done:

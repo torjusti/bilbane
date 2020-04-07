@@ -8,7 +8,7 @@ from model.car import Car
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
-SPRITE_SCALING_CAR = 0.25
+CAR_LENGTH = 14e-2
 DEFAULT_YAW = -90
 
 class SlotCarGame(arcade.Window):
@@ -65,7 +65,8 @@ class SlotCarGame(arcade.Window):
 
         self.explosions_list = arcade.SpriteList()
         for i, car in enumerate(self.track.cars):
-            car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png', SPRITE_SCALING_CAR)
+            car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png')
+            car_sprite.scale = (CAR_LENGTH / car_sprite.height) * self.get_scaling_factor()
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
             self.round_timer[car] = 0
@@ -80,12 +81,14 @@ class SlotCarGame(arcade.Window):
         # TODO: Calculate magic number 0.1 in a better way.
         return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
+    def get_scaling_factor(self):
+        max_diff = (self.track_bounds[1] - self.track_bounds[0]).max()
+        return min(SCREEN_WIDTH, SCREEN_HEIGHT) / max_diff
+
     def scale_length(self, length):
         """ Scale a length from the car/track length system, to a length in
         pixels corresponding to the transform method. """
-        max_diff = (self.track_bounds[1] - self.track_bounds[0]).max()
-        normalized = length / max_diff
-        return normalized * min(SCREEN_WIDTH, SCREEN_HEIGHT)
+        return length * self.get_scaling_factor()
 
     def on_draw(self):
         arcade.start_render()

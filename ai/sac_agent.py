@@ -11,7 +11,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SACAgent(ActorCriticAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, critic_lr=1e-3,
-                 actor_lr=3e-4, critic_update_step=2, actor_update_step=1, actor_decay=1e-2):
+                 actor_lr=3e-4, update_step=1):
         self.actor = GaussianActor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
@@ -23,8 +23,7 @@ class SACAgent(ActorCriticAgent):
         # Initialize optimizers.
         self.Q1_optimizer = torch.optim.Adam(self.Q1.parameters(), lr=critic_lr)
         self.Q2_optimizer = torch.optim.Adam(self.Q2.parameters(), lr=critic_lr)
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr,
-                                                weight_decay=actor_decay)
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
         # We use the improvement to the original paper where alpha is learned.
         self.alpha = 1
@@ -38,8 +37,7 @@ class SACAgent(ActorCriticAgent):
         # Other hyperparameters.
         self.gamma = gamma
         self.tau = tau
-        self.critic_update_step = critic_update_step
-        self.actor_update_step = actor_update_step
+        self.update_step = update_step
 
         # Number of steps the agent has been trained for.
         self.iterations = 0
@@ -54,8 +52,8 @@ class SACAgent(ActorCriticAgent):
         action = action.cpu().detach().squeeze(0).numpy().flatten()
         # Put network back into training mode.
         self.actor.train()
-        # Return scaled action, since pre-scaled action is centered around 0.
-        return 0.5 * (action + 1)
+        # Return un-scaled action.
+        return action
 
     def update(self, batch):
         self.iterations += 1
@@ -65,14 +63,6 @@ class SACAgent(ActorCriticAgent):
         # Get selected action for the starting state. The log likelihood
         # needs to be differentiable, so use the reparameterization trick.
         selected_action, log_likelihood = self.actor.sample(state, return_likelihood=True)
-
-        if self.iterations % self.actor_update_step == 0:
-            # Optimize the temperature parameter.
-            alpha_loss = -(self.log_alpha * (log_likelihood.detach() + self.target_entropy)).mean()
-            self.alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optimizer.step()
-            self.alpha = self.log_alpha.detach().exp()
 
         with torch.no_grad():
             # Get selected action for the next state. Note that actions are sampled from current policy.
@@ -98,19 +88,25 @@ class SACAgent(ActorCriticAgent):
         q2_loss.backward()
         self.Q2_optimizer.step()
 
-        if self.iterations % self.actor_update_step == 0:
-            min_q = torch.min(
-                self.Q1.forward(state, selected_action),
-                self.Q2.forward(state, selected_action)
-            )
+        min_q = torch.min(
+            self.Q1.forward(state, selected_action),
+            self.Q2.forward(state, selected_action)
+        )
 
-            policy_loss = (self.alpha * log_likelihood - min_q).mean()
+        policy_loss = (self.alpha * log_likelihood - min_q).mean()
 
-            self.actor_optimizer.zero_grad()
-            policy_loss.backward()
-            self.actor_optimizer.step()
+        self.actor_optimizer.zero_grad()
+        policy_loss.backward()
+        self.actor_optimizer.step()
 
-        if self.iterations % self.critic_update_step == 0:
+        # Optimize the temperature parameter.
+        alpha_loss = -(self.log_alpha * (log_likelihood + self.target_entropy).detach()).mean()
+        self.alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.alpha_optimizer.step()
+        self.alpha = self.log_alpha.exp()
+
+        if self.iterations % self.update_step == 0:
             # Paper seems to only perform soft updates for the Q-value networks.
             self.soft_update(self.Q1, self.target_Q1)
             self.soft_update(self.Q2, self.target_Q2)
