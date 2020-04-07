@@ -38,6 +38,8 @@ EPISODE_LENGTH = 1000
 SAC_USE_OU = False
 # Number of steps to sample randomly before training starts.
 RANDOM_STEPS = 1000
+# Set to `True` if the agent should always have fixed-length episodes.
+FIXED_EPISODES = False
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
@@ -95,16 +97,21 @@ class SlotCarEnv:
         # Note: The actual game can run at a much finer granularity.
         self.track.step(DELTA_TIME)
 
+        # If we do not have fixed-length episodes, the episode
+        # is finished when the car crashes. If this is not the
+        # case, we instead put the car back on the track start.
+        if not FIXED_EPISODES:
+            done = self.car.is_crashed
+        else:
+            done = False
+
         if self.car.is_crashed:
             reward = -1000
             self.car.reset()
         else:
             reward = np.linalg.norm(self.car.vel_vec).item()
 
-        # We never return done, opting to instead put the car back on the track.
-        # This has the benefit of adding a few extra negative reinforcement
-        # samples, since the same noise generator is used after restarting.
-        return self.state, reward, False
+        return self.state, reward, done
 
 
 class AIController:
@@ -146,7 +153,7 @@ def evaluate(env, agent, episode_length=EPISODE_LENGTH):
 
 def get_random_rail():
     """ Get a randomly generated rail. """
-    if random.random() >= 0.5:
+    if random.random() <= 0.25:
         # Generate a straight rail.
         return Straight(random.choice(['std', 'half', 'quarter', 'short']))
     else:
