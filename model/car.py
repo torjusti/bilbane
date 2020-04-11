@@ -54,7 +54,7 @@ class Car:
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
-        self.MAX_CENTRIFUGAL_FORCE = 2
+        self.MAX_CENTRIFUGAL_FORCE = 100000000000 #fiks her, ser bort fra avkjøring inntil videre
 
         self.is_crashed = False
         self.crash_time = 0
@@ -78,11 +78,11 @@ class Car:
         self.area        = 0.002268   # m^2
         self.drag_coeff  = 0.35       # dimensionless
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .05        # dimensionless
-        self.mu_tire     = .9         # dimensionless
+        self.motor_eta   = .9        # dimensionless
+        self.mu_tire     = 6.12        # dimensionless 
         self.mu_pin      = .04        # dimensionless
-        self.mu_roll     = .01        # dimensionless
-        self.mu_gears    = .1         # N
+        self.mu_roll     = .05        # dimensionless
+        self.mu_axle     = .1235         # N, 
         self.motor_coeff = .1         # N/(m/s)
         self.max_power   = 10         # W
         self.vel_eps     = 0.12       # m/s
@@ -96,9 +96,9 @@ class Car:
             void
         """
 
-        # Crash check
-        if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
-            self.is_crashed = True
+        # Crash check, ser bort fra avkjøring inntil videre
+        #if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
+            #self.is_crashed = True
 
         # Make velocity tangential to track
         #if self.track_locked:
@@ -367,19 +367,19 @@ class Car:
         """
 
         rolling_resistance = self.get_rolling_resistance(pos, vel)
-        motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
-        axle_friction      = self.get_axle_friction(pos, vel)
+        #motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
+        #axle_friction      = self.get_axle_friction(pos, vel)
         pin_friction       = self.get_pin_friction(pos, vel, phi)
         lateral_friction   = self.get_lateral_friction(pos, vel)
         magnet_force       = self.get_magnet_force(pos, vel)
         gravity_force      = self.get_gravity_force(pos, vel)
         normal_force       = self.get_normal_force(pos, vel)
-        thrust_force       = self.get_thrust_force(pos, vel, c_in)
+        #thrust_force       = self.get_thrust_force(pos, vel, c_in)
         engine_force       = self.get_engine_force(pos, vel, phi, c_in)
         drag_force         = self.get_drag_force(pos, vel)
         lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
 
-        print(engine_force)
+        #print(engine_force)
 
 
         total_force_vec = ( magnet_force
@@ -391,7 +391,7 @@ class Car:
                           + pin_friction
                           + rolling_resistance
                           + drag_force )
-
+        #print("total force: ",total_force_vec)
         """
         if (c_in != 0):
             print("Rolling resitance:", self.get_rolling_resistance(pos, vel), "\n",
@@ -540,7 +540,7 @@ class Car:
         Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
-
+        
         T = c_in*self.max_power/max(0.12, np.linalg.norm(vel))
         t_vec = np.asarray([T, 0, 0])
 
