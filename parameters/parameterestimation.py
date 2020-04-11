@@ -4,16 +4,16 @@ import random
 
 
 
-class ParameterEstimation:
+class DataGathering:
     def __init__(self, track, filename):
         self.track = track
-        ''' # 0:mag_coeff
-         1: mu_pin 
-        2: mu_roll  
-        3: mu_axle  
-        4: motor_coeff 
-        5: max_power '''
-        
+        ''' 0:mag_coeff
+            1: mu_pin 
+            2: mu_roll  
+            3: mu_gears  
+            4: motor_coeff 
+            5: max_power '''
+
         self.update_var = 1
         self.voltage_upper_limit = 0.65
         self.voltage_lower_limit = 0.4

@@ -27,7 +27,7 @@ def main():
     ]
     
     track.cars = cars
-    test = pe.ParameterEstimation(track, "test_2")
+    test = pe.DataGathering(track, "test_2")
     test.run()
     # controller = train(track, cars[1])
     # cars[1].controller = controller

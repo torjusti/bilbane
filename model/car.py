@@ -82,7 +82,7 @@ class Car:
         self.mu_tire     = 6.12        # dimensionless 
         self.mu_pin      = .04        # dimensionless
         self.mu_roll     = .05        # dimensionless
-        self.mu_axle     = .1235         # N, 
+        self.mu_gears     = .1235         # N, 
         self.motor_coeff = .1         # N/(m/s)
         self.max_power   = 10         # W
         self.vel_eps     = 0.12       # m/s
