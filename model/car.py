@@ -54,7 +54,7 @@ class Car:
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
-        self.MAX_CENTRIFUGAL_FORCE = 100000000000 #fiks her, ser bort fra avkjøring inntil videre
+        self.MAX_CENTRIFUGAL_FORCE = 10 #fiks her, ser bort fra avkjøring inntil videre
 
         self.is_crashed = False
         self.crash_time = 0
@@ -76,15 +76,17 @@ class Car:
 
         self.mass        = 0.08       # kg
         self.area        = 0.002268   # m^2
-        self.drag_coeff  = 0.35       # dimensionless
+        self.drag_coeff  = 0.25       # dimensionless, Drag coeff for a car
+        
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .9        # dimensionless
-        self.mu_tire     = 6.12        # dimensionless 
-        self.mu_pin      = .04        # dimensionless
-        self.mu_roll     = .05        # dimensionless
-        self.mu_gears     = .1235         # N, 
-        self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = 10         # W
+        self.motor_eta   = .95       # dimensionless
+        self.mu_tire     = 1        # dimensionless, brukes ikke 
+        self.mu_pin      = .04        # dimensionless, brukes ikke
+        self.mu_roll     = .1        # dimensionless
+        self.mu_gears     = .5         # N, 
+        self.motor_coeff = 10         # N/(m/s) brukes ikke
+        self.max_power   = 4.5         # W
+       
         self.vel_eps     = 0.12       # m/s
 
     def update_state(self, delta_time):
@@ -96,9 +98,9 @@ class Car:
             void
         """
 
-        # Crash check, ser bort fra avkjøring inntil videre
-        #if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
-            #self.is_crashed = True
+        # Crash check
+        if np.linalg.norm(self.get_centrifugal_force(self.pos_vec, self.vel_vec, self.phi)) >= self.MAX_CENTRIFUGAL_FORCE:
+            self.is_crashed = True
 
         # Make velocity tangential to track
         #if self.track_locked:
@@ -369,15 +371,15 @@ class Car:
         rolling_resistance = self.get_rolling_resistance(pos, vel)
         #motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
         #axle_friction      = self.get_axle_friction(pos, vel)
-        pin_friction       = self.get_pin_friction(pos, vel, phi)
-        lateral_friction   = self.get_lateral_friction(pos, vel)
+        pin_friction       = self.get_pin_friction(pos, vel, phi)# = 0
+        lateral_friction   = self.get_lateral_friction(pos, vel) # = 0
         magnet_force       = self.get_magnet_force(pos, vel)
         gravity_force      = self.get_gravity_force(pos, vel)
         normal_force       = self.get_normal_force(pos, vel)
         #thrust_force       = self.get_thrust_force(pos, vel, c_in)
         engine_force       = self.get_engine_force(pos, vel, phi, c_in)
         drag_force         = self.get_drag_force(pos, vel)
-        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
+        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi) # = 0
 
         #print(engine_force)
 
@@ -392,7 +394,7 @@ class Car:
                           + rolling_resistance
                           + drag_force )
         #print("total force: ",total_force_vec)
-        """
+        '''
         if (c_in != 0):
             print("Rolling resitance:", self.get_rolling_resistance(pos, vel), "\n",
                   "Motor brake force:", self.get_motor_brake_force(pos, vel, c_in), "\n",
@@ -405,8 +407,9 @@ class Car:
                   "Thrust force     :", self.get_thrust_force(pos, vel, c_in), "\n",
                   "Drag force       :", self.get_drag_force(pos, vel), "\n",
                   "Lateral pin force:", self.get_lateral_pin_force(pos, vel, phi), "\n",
-                  "Total force:", total_force_vec, "\n")
-        """
+                  "Total force:", total_force_vec, "\n",
+                  "Velocity vec:", self.vel_vec)'''
+        
 
         return total_force_vec
 
