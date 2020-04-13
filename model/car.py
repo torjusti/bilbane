@@ -34,9 +34,11 @@ class Car:
     # Controller variables
     controller_input = None  # Value in interval [0,1].
     key_control = None  # True if car should be controlled by keyboard keys.
-    controller = None  # Controller for letting AI control car
+    controller = None  # Controller for letting AI control car.
+    input_cutoff = None  # Maximum controller input for which the car should not move.
 
     # Car properties
+    mu_prop_v   = None
     mass        = None  # kg
     area        = None  # m^2
     drag_coeff  = None  # dimensionless
@@ -45,14 +47,16 @@ class Car:
     mu_tire     = None  # dimensionless
     mu_pin      = None  # dimensionless
     mu_roll     = None  # dimensionless
-    mu_axle     = None  # dimensionless
+    mu_gears    = None  # dimensionless
+    mu_prop_v   = None  # kg/s
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
+    vel_eps     = None  # m/s, to avoid division by 0 in thrust formula
 
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
-        self.MAX_CENTRIFUGAL_FORCE = 2
+        self.MAX_CENTRIFUGAL_FORCE = 1.312
 
         self.is_crashed = False
         self.crash_time = 0
@@ -70,18 +74,22 @@ class Car:
         self.controller_input = 0
         self.key_control = key_control
         self.controller = None
+        self.input_cutoff = 0.29
 
         self.mass        = 0.08       # kg
         self.area        = 0.002268   # m^2
-        self.drag_coeff  = 0.35       # dimensionless
+        self.drag_coeff  = 0.25       # dimensionless, Drag coeff for a car
+        
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .95        # dimensionless
-        self.mu_tire     = .9         # dimensionless
-        self.mu_pin      = .04        # dimensionless
-        self.mu_roll     = .01        # dimensionless
-        self.mu_axle     = .1         # N
-        self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = .5         # W
+        self.motor_eta   = .765       # dimensionless
+        self.mu_tire     = 1          # dimensionless, brukes ikke
+        self.mu_pin      = .04        # dimensionless, brukes ikke
+        self.mu_roll     = .0085      # dimensionless
+        self.mu_gears    = .079       # N,
+        self.motor_coeff = 10         # N/(m/s) brukes ikke
+        self.max_power   = 5          # W
+        self.mu_prop_v   = 0.39
+        self.vel_eps     = 0.15       # m/s
 
     def update_state(self, delta_time):
         """
@@ -199,6 +207,9 @@ class Car:
         self.pos_vec = new_pos_vec
         self.vel_vec = new_vel_vec
         self.phi = new_phi
+
+        print(self.controller_input)
+        print(np.linalg.norm(self.vel_vec))
 
     def get_physics_state(self, delta_time):
         """
@@ -366,29 +377,35 @@ class Car:
         """
 
         rolling_resistance = self.get_rolling_resistance(pos, vel)
-        motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
-        axle_friction      = self.get_axle_friction(pos, vel)
-        pin_friction       = self.get_pin_friction(pos, vel, phi)
-        lateral_friction   = self.get_lateral_friction(pos, vel)
+        #motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
+        #axle_friction      = self.get_axle_friction(pos, vel)
+        pin_friction       = self.get_pin_friction(pos, vel, phi)# = 0
+        lateral_friction   = self.get_lateral_friction(pos, vel) # = 0
         magnet_force       = self.get_magnet_force(pos, vel)
         gravity_force      = self.get_gravity_force(pos, vel)
         normal_force       = self.get_normal_force(pos, vel)
-        thrust_force       = self.get_thrust_force(pos, vel, c_in)
+        #thrust_force       = self.get_thrust_force(pos, vel, c_in)
+        engine_force       = self.get_engine_force(pos, vel, phi, c_in)
         drag_force         = self.get_drag_force(pos, vel)
-        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
+        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi) # = 0
+
+        #print(engine_force)
+        #print(rolling_resistance)
+        #print(pin_friction)
+        #print(lateral_pin_force)
 
 
         total_force_vec = ( magnet_force
                           + gravity_force
                           + normal_force
-                          + thrust_force
+                          + engine_force
                           + lateral_pin_force
                           + lateral_friction
                           + pin_friction
-                          + axle_friction
                           + rolling_resistance
-                          + motor_brake_force
                           + drag_force )
+
+        #print(np.linalg.norm(total_force_vec))
 
         """
         if (c_in != 0):
@@ -403,7 +420,8 @@ class Car:
                   "Thrust force     :", self.get_thrust_force(pos, vel, c_in), "\n",
                   "Drag force       :", self.get_drag_force(pos, vel), "\n",
                   "Lateral pin force:", self.get_lateral_pin_force(pos, vel, phi), "\n",
-                  "Total force:", total_force_vec, "\n")
+                  "Total force:", total_force_vec, "\n",
+                  "Velocity vec:", self.vel_vec)'''
         """
 
         return total_force_vec
@@ -453,7 +471,7 @@ class Car:
             axel_fric_vec -- ndarray containing the components of the axel friction force acting on the car (in x-, y- and z-direction)
         """
 
-        axle_fric_vec = np.asarray([-self.mu_axle, 0, 0])
+        axle_fric_vec = np.asarray([-self.mu_gears, 0, 0])
 
         if np.linalg.norm(vel) < TOL:
             axle_fric_vec =  np.zeros_like(axle_fric_vec)
@@ -538,7 +556,7 @@ class Car:
         Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
-
+        
         T = c_in*self.max_power/max(0.12, np.linalg.norm(vel))
         t_vec = np.asarray([T, 0, 0])
 
@@ -600,6 +618,23 @@ class Car:
             cent_vec = self.rail.direction * np.asarray([0, cent_magnitude, 0])
 
         return cent_vec
+
+    def get_engine_force(self, pos, vel, phi, c_in):
+        """
+        Purpose: Combine thrust force, motor braking effects, internal friction and rolling resistance in one function.
+        """
+
+        # Calculate thrust
+        T = max(c_in - self.input_cutoff, 0) * self.motor_eta * self.max_power / max(self.vel_eps, np.linalg.norm(vel))
+
+        # Calculate force causing energy dissipation
+        friction_loss = -self.mu_gears - self.mu_prop_v*np.linalg.norm(vel)
+        if np.linalg.norm(vel) < TOL:
+            friction_loss = 0
+
+        engine_force = (T + friction_loss) * np.asarray([1,0,0])
+
+        return engine_force
 
     # ---------------------------------------------------------------------------
     # Helper functions

@@ -182,7 +182,6 @@ class SlotCarGame(arcade.Window):
         """
         Numbers from 1-9 corresponds to lowest speed setting, to max speed setting. Every other key is zero speed.
         """
-        """
         if 49 <= symbol <= 57:
             speed = symbol - 48
         else:
@@ -209,6 +208,7 @@ class SlotCarGame(arcade.Window):
                     if new_input > 1:
                         new_input = 1
                     car.controller_input = new_input
+        """
 
 
 class Explosion(arcade.Sprite):
