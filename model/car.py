@@ -208,8 +208,8 @@ class Car:
         self.vel_vec = new_vel_vec
         self.phi = new_phi
 
-        print(self.controller_input)
-        print(np.linalg.norm(self.vel_vec))
+        #print(self.controller_input)
+        #print(np.linalg.norm(self.vel_vec))
 
     def get_physics_state(self, delta_time):
         """
@@ -357,7 +357,7 @@ class Car:
 
         rail_progress = min(rail_progress, 1)
 
-        print(rail_progress)
+        #print(rail_progress)
 
         return rail_progress
 

@@ -5,22 +5,19 @@ def create_arc_outline(center_x: float, center_y: float, width: float,
                      height: float, color: arcade.Color,
                      start_angle: float, end_angle: float,
                      border_width: float = 1, tilt_angle: float = 0,
-                     num_segments: int = 128):
+                     num_segments: int = 256):
     """
         Creates arc outline
     """
     unrotated_point_list = []
-
-    start_segment = int(start_angle / 360 * num_segments)
-    end_segment = int(end_angle / 360 * num_segments)
 
     inside_width = width - border_width / 2
     outside_width = width + border_width / 2
     inside_height = height - border_width / 2
     outside_height = height + border_width / 2
 
-    for segment in range(start_segment, end_segment + 1):
-        theta = 2.0 * math.pi * segment / num_segments
+    for segment in range(num_segments + 1):
+        theta = math.pi / 180 * (start_angle + segment * (end_angle - start_angle) / num_segments)
 
         x1 = inside_width * math.cos(theta)
         y1 = inside_height * math.sin(theta)

@@ -8,7 +8,7 @@ from model.car import Car
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
-SPRITE_SCALING_CAR = 0.25
+CAR_LENGTH = 14e-2
 DEFAULT_YAW = -90
 
 class SlotCarGame(arcade.Window):
@@ -39,8 +39,9 @@ class SlotCarGame(arcade.Window):
 
         self.round_timer = {}  # Car to current round time
         self.round_times = {}  # Car to list of round times
+        self.best_times = {} # Record times for each car
         self.global_time = 0  # The total time since game start
-        self.previous_rail = None
+        self.previous_rails = {} # Previous rail for car
 
     def setup_track(self):
         self.track_element_list = arcade.ShapeElementList()
@@ -64,7 +65,8 @@ class SlotCarGame(arcade.Window):
 
         self.explosions_list = arcade.SpriteList()
         for i, car in enumerate(self.track.cars):
-            car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png', SPRITE_SCALING_CAR)
+            car_sprite = arcade.Sprite(f'visualization/images/{sprites[i]}.png')
+            car_sprite.scale = (CAR_LENGTH / car_sprite.height) * self.get_scaling_factor()
             car_sprite.center_x, car_sprite.center_y = self.transform(0, 0)
             self.car_sprites.append(car_sprite)
             self.round_timer[car] = 0
@@ -79,12 +81,14 @@ class SlotCarGame(arcade.Window):
         # TODO: Calculate magic number 0.1 in a better way.
         return (normalized + 0.1) * min(SCREEN_WIDTH, SCREEN_HEIGHT)
 
+    def get_scaling_factor(self):
+        max_diff = (self.track_bounds[1] - self.track_bounds[0]).max()
+        return min(SCREEN_WIDTH, SCREEN_HEIGHT) / max_diff
+
     def scale_length(self, length):
         """ Scale a length from the car/track length system, to a length in
         pixels corresponding to the transform method. """
-        max_diff = (self.track_bounds[1] - self.track_bounds[0]).max()
-        normalized = length / max_diff
-        return normalized * min(SCREEN_WIDTH, SCREEN_HEIGHT)
+        return length * self.get_scaling_factor()
 
     def on_draw(self):
         arcade.start_render()
@@ -96,19 +100,13 @@ class SlotCarGame(arcade.Window):
 
     def draw_time(self):
         color = {-1: arcade.color.BLUE, 1: arcade.color.RED}
-        best_times = {}
-        for i, car in enumerate(reversed(self.track.cars)):
-            s = f"{self.seconds_to_string(self.round_timer[car], decimals=.5)}"
-            arcade.draw_text(s, 0, 12 * i, color[car.lane], 12)
-            times = self.round_times[car]
-            if times:
-                best_times[car] = min(times)
 
-        if best_times.keys():
-            sort = sorted(best_times.items(), key=lambda e: e[1])
-            for i, (car, time) in enumerate(sort):
-                s = f"{self.seconds_to_string(best_times[car], decimals=3)}"
-                arcade.draw_text(s, 0, self.height - 12 * (i + 2), color[car.lane], 12)
+        for i, car in enumerate(reversed(self.track.cars)):
+            lap_time = self.seconds_to_string(self.round_timer[car], decimals=.5)
+            best_time = round(self.best_times[car], 3) \
+                if car in self.best_times else 'N/A'
+            s = f"Lap time for car {i + 1}: {lap_time} (Best: {best_time})"
+            arcade.draw_text(s, 3, 15 * i + 3, color[car.lane], 12)
 
     @staticmethod
     def seconds_to_string(seconds, decimals=1.0):
@@ -162,21 +160,23 @@ class SlotCarGame(arcade.Window):
                 if i in self.cars_crashed:
                     self.cars_crashed.remove(i)
 
-            self.round_time_step(car, delta_time)
+            self.round_time_step(self.track.cars[i], delta_time)
 
     def round_time_step(self, car: Car, delta_time):
         self.round_timer[car] += delta_time
 
-        if self.previous_rail == self.track.rails[-1] and car.rail == self.track.rails[0]:
+        if car in self.previous_rails and self.previous_rails[car] == self.track.rails[-1] \
+                and car.rail == self.track.rails[0]:
             # Lap completed, only if speed is nonzero.
             if np.linalg.norm(car.vel_vec) == 0:
                 return
 
             new_time = self.round_timer[car]
+            self.best_times[car] = min(self.best_times.get(car, math.inf), new_time)
             self.round_times[car].append(new_time)
             self.round_timer[car] = 0  # Reset clock
 
-        self.previous_rail = car.rail
+        self.previous_rails[car] = car.rail
 
     def on_key_press(self, symbol: int, modifiers: int):
         """

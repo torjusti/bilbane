@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-import numpy as np
+from torch.distributions import HalfNormal
 import torch
 import copy
 
@@ -8,9 +8,10 @@ from ai.models import Actor, Critic
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+ACTION_NOISE = 'default'
 
 class TD3Agent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=0.002, actor_lr=1e-3, critic_lr=1e-3):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, actor_lr=3e-4, critic_lr=1e-3):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
@@ -35,10 +36,14 @@ class TD3Agent(ActorCriticAgent):
 
         with torch.no_grad():
             # Select action according to policy and add clipped noise.
-            noise = (torch.randn_like(action) * 0.1).clamp(-0.25, 0.25)
-            next_action = (self.actor_target(next_state) + noise).clamp(0, 1)
+            if ACTION_NOISE == 'default':
+                noise = (torch.randn_like(action) * 0.1).clamp(-0.25, 0.25)
+                next_action = (self.actor_target(next_state) + noise).clamp(0, 1)
+            elif ACTION_NOISE == 'custom':
+                # One-sided noise to avoid underestimation when using negative reinforcement.
+                noise = HalfNormal(0.1).sample(action.shape).to(device).clamp(0, 0.25)
+                next_action = (self.actor_target(next_state) - noise).clamp(0, 1)
 
-            # Find the lowest prediction.
             min_prediction = torch.min(self.Q1_target(next_state, next_action),
                                        self.Q2_target(next_state, next_action))
 

@@ -1,5 +1,4 @@
 import torch.nn.functional as F
-import numpy as np
 import torch
 import copy
 
@@ -10,17 +9,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class DDPGAgent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=0.001,
-                 actor_lr=1e-4, critic_lr=1e-3, weight_decay=1e-2):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=1e-3, actor_lr=1e-4, critic_lr=1e-3, weight_decay=1e-2):
         self.actor = Actor(state_dim, action_dim).to(device)
         self.critic = Critic(state_dim, action_dim).to(device)
-
-        # Initialize the output layer weights with small values such
-        # that the initial policy and value estimates are near 0.
-        torch.nn.init.uniform_(self.actor.l3.weight.data, -3e-3, 3e-3)
-        torch.nn.init.uniform_(self.actor.l3.bias.data, -3e-3, 3e-3)
-        torch.nn.init.uniform_(self.critic.l3.weight.data, -3e-3, 3e-3)
-        torch.nn.init.uniform_(self.critic.l3.bias.data, -3e-3, 3e-3)
 
         # Create copies of the target and actor networks which track the above
         # networks. These are use during training for increased stability.
