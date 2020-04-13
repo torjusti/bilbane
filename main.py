@@ -7,19 +7,13 @@ from ai.controller import train
 
 def main():
     rails = [
-        # st.Straight("std"),
-        # st.Straight("std"),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Straight("std"),
-        st.Straight("std"),
+        st.Straight('half'),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
-        # st.Straight("std"),
-        # st.Straight("std"),
         st.Curve(2, 45, direction=st.Curve.Left),
-        st.Straight("std"),
-        st.Straight("std"),
+        st.Straight('half'),
+        st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
