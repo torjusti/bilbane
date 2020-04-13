@@ -15,9 +15,9 @@ class DataGathering:
         self.voltage_lower_limit = 0.4
         self.voltage_inc = 0.05
 
-        self.upper_limits = [1, 1, 5, 1]
+        self.upper_limits = [0.5, 0.5, 5, 0.5]
         self.lower_limits = [ 0.05, 0.05, 1, 0.05 ]
-        self.update_inc =  [ 0.095, 0.095, 0.4 , 0.095]#10 steps på hver
+        self.update_inc =  [ 0.045, 0.045, 0.4 , 0.045]#10 steps each
         self.filename = filename
         
         self.car_pars = [ 0.05, 0.05, 1, 0.05 ]
@@ -82,18 +82,19 @@ class DataGathering:
         self.set_up()
         while True:
             time_voltage = []
-            for _ in range(6):
+            write = True
+            for i in range(6): 
                 time = self.run_simulation()
+                if i == 0 and (2.5 < time or time < 1.9 ):
+                    write = False
+                    break
                 voltage = self.update_voltage()
                 time_voltage.append(time)
                 time_voltage.append(voltage)
-                print("Time: ", time)
-            for i in range(len(self.car_pars)):
-                print(i,self.car_pars[i])
-            if(time != -1 and time < 2 and time_voltage[0]<3):   
+            
+            if write:   
                 self.write_to_file(time_voltage)
             for car in self.track.cars:
-                #print("vel: ", np.linalg.norm(car.vel_vec))
                 car.reset()
                 car.controller_input = self.voltage_lower_limit
             if not self.update_parameters():
@@ -103,7 +104,7 @@ class DataGathering:
     def run_simulation(self):
         global_time = 0
         laps = 0
-        delta_time = 1/100 
+        delta_time = 1/60 
         start_timer = True
         start_time_lap = 0
         previous_rail = None
@@ -122,20 +123,6 @@ class DataGathering:
                 start_time_lap = global_time
             if (laps == 2 and not start_timer):
                 lap_time = global_time - start_time_lap
-                ''' print("Lap time", lap_time, " controller input: ", car.controller_input)
-                print("vel: ", np.linalg.norm(car.vel_vec))
-                print("Rolling resitance:", car.get_rolling_resistance(car.pos_vec, car.vel_vec), "\n",
-                 
-                   "Axle friction    :", car.get_axle_friction(car.pos_vec, car.vel_vec), "\n",
-                  
-                   "Magnet force     :", car.get_magnet_force(car.pos_vec, car.vel_vec), "\n",
-                   "Gravity force    :", car.get_gravity_force(car.pos_vec, car.vel_vec), "\n",
-                   "Normal force     :", car.get_normal_force(car.pos_vec, car.vel_vec), "\n",
-                   "Thrust force     :", car.get_thrust_force(car.pos_vec, car.vel_vec, car.controller_input), "\n",
-                   "Drag force       :", car.get_drag_force(car.pos_vec, car.vel_vec), "\n",
-                  
-                   "Total force:", car.get_total_force( car.pos_vec, car.vel_vec, car.phi, car.controller_input), "\n")
-                '''
                 break
             if global_time > 50:
                 lap_time = -1
@@ -167,7 +154,7 @@ class ParameterEstimation:
             ls = []
             j = 0
             for i in range(0, 12, 2):
-                if((float(lap_times[i]) - 0.1 ) <= self.measured_lap_times[j] <= (float(lap_times[i]) + 0.1 )):
+                if((float(lap_times[i]) - 0.5 ) <= self.measured_lap_times[j] <= (float(lap_times[i]) + 0.5 )):
                     ls.append(float(lap_times[i]))
                     if i == 10:
                         self.sim_lap_times.append(ls)
