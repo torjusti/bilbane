@@ -15,9 +15,9 @@ class DataGathering:
         self.voltage_lower_limit = 0.4
         self.voltage_inc = 0.05
 
-        self.upper_limits = [1, 1, 10, 1]
+        self.upper_limits = [1, 1, 5, 1]
         self.lower_limits = [ 0.05, 0.05, 1, 0.05 ]
-        self.update_inc = [ 0.095, 0.095, 0.9 , 0.095]#10 steps på hver
+        self.update_inc =  [ 0.095, 0.095, 0.4 , 0.095]#10 steps på hver
         self.filename = filename
         
         self.car_pars = [ 0.05, 0.05, 1, 0.05 ]
@@ -52,9 +52,10 @@ class DataGathering:
 
     def update_parameters(self):
         if self.car_pars[self.update_var] >= self.upper_limits[self.update_var]:
-            if (self.const_var == 2 and self.update_var == 1 ) or self.update_var == 4:
+            if (self.const_var == len(self.car_pars)-1 and self.update_var == len(self.car_pars)-2 )\
+                 or self.update_var == len(self.car_pars)-1:
                 self.car_pars[self.const_var] += self.update_inc[self.const_var]
-                for i in range(len(self.car_pars)-1):
+                for i in range(len(self.car_pars)):
                     if i != self.const_var:
                         self.car_pars[i] = self.lower_limits[i]
                 if self.car_pars[self.const_var] >= self.upper_limits[self.const_var]:
@@ -86,7 +87,9 @@ class DataGathering:
                 voltage = self.update_voltage()
                 time_voltage.append(time)
                 time_voltage.append(voltage)
-                #print("Time: ", time)
+                print("Time: ", time)
+            for i in range(len(self.car_pars)):
+                print(i,self.car_pars[i])
             if(time != -1 and time < 2 and time_voltage[0]<3):   
                 self.write_to_file(time_voltage)
             for car in self.track.cars:
@@ -150,7 +153,7 @@ class DataGathering:
 class ParameterEstimation:
     def __init__(self, filename):
         self.filename = filename
-        self.measured_lap_times = [2.1, 1.8, 1.6, 1.4, 1.2, 1]
+        self.measured_lap_times = [2.14, 1.75, 1.55, 1.35, 1.16, 1.07]
         self.sim_lap_times = []#float
         self.corresponding_parameters = []#str
         self.best_fit = None
@@ -164,7 +167,7 @@ class ParameterEstimation:
             ls = []
             j = 0
             for i in range(0, 12, 2):
-                if((float(lap_times[i]) - 0.5 ) <= self.measured_lap_times[j] <= (float(lap_times[i]) + 0.5 )):
+                if((float(lap_times[i]) - 0.1 ) <= self.measured_lap_times[j] <= (float(lap_times[i]) + 0.1 )):
                     ls.append(float(lap_times[i]))
                     if i == 10:
                         self.sim_lap_times.append(ls)
@@ -177,7 +180,7 @@ class ParameterEstimation:
         i = 0
         for times in self.sim_lap_times:
             sum = 0
-            for j in range(len(times)-1): 
+            for j in range(len(times)): 
                 sum += pow(times[j]-self.measured_lap_times[j],2)
             if sum < self.deviation:
                 self.deviation = sum
