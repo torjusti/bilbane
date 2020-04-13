@@ -38,6 +38,7 @@ class Car:
     input_cutoff = None  # Maximum controller input for which the car should not move.
 
     # Car properties
+    mu_prop_v   = None
     mass        = None  # kg
     area        = None  # m^2
     drag_coeff  = None  # dimensionless

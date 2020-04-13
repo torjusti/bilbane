@@ -27,17 +27,16 @@ def main():
     ]
     
     track.cars = cars
-
-    #controller = train(track, cars[1])
-    #cars[1].controller = controller
-    game.start_game(track)
-    """"
-    test = pe.DataGathering(track, "test_2")
+    
+    test = pe.DataGathering(track, "parameters/parameter_estimation.txt")
     test.run()
+
     # controller = train(track, cars[1])
     # cars[1].controller = controller
-    """
 
+    #Find best fit of parameters
+    best_fit = pe.ParameterEstimation("parameters/quick_test5.txt")
+    best_fit.run()
 
 if __name__ == '__main__':
     main()
