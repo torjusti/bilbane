@@ -38,6 +38,7 @@ class Car:
     input_cutoff = None  # Maximum controller input for which the car should not move.
 
     # Car properties
+    mu_prop_v   = None
     mass        = None  # kg
     area        = None  # m^2
     drag_coeff  = None  # dimensionless
@@ -80,13 +81,14 @@ class Car:
         
         self.mag_coeff   = 1.0        # N
         self.motor_eta   = .95       # dimensionless
+        
         self.mu_tire     = 1        # dimensionless, brukes ikke 
         self.mu_pin      = .04        # dimensionless, brukes ikke
         self.mu_roll     = .1        # dimensionless
         self.mu_gears     = .5         # N, 
         self.motor_coeff = 10         # N/(m/s) brukes ikke
         self.max_power   = 4.5         # W
-       
+        self.mu_prop_v   = 0.1
         self.vel_eps     = 0.12       # m/s
 
     def update_state(self, delta_time):
@@ -615,7 +617,7 @@ class Car:
         T = max(c_in - self.input_cutoff, 0) * self.motor_eta * self.max_power / max(self.vel_eps, np.linalg.norm(vel))
 
         # Calculate force causing energy dissipation
-        friction_loss = -self.mu_gears
+        friction_loss = -self.mu_gears - self.mu_prop_v*np.linalg.norm(vel)
         if np.linalg.norm(vel) < TOL:
             friction_loss = 0
 

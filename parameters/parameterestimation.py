@@ -8,20 +8,19 @@ class DataGathering:
         ''' 
             0: mu_roll  
             1: mu_gears  
-            2: max_power 
+            2: max_power
+            3: mu_prop_v 
             '''
-
-        
         self.voltage_upper_limit = 0.65
         self.voltage_lower_limit = 0.4
         self.voltage_inc = 0.05
 
-        self.upper_limits = [0.1, 1, 10 ]
-        self.lower_limits = [ 0.005, 0.05, 1 ]
-        self.update_inc = [ 0.0095, 0.095, 0.9 ]#10 steps på hver
+        self.upper_limits = [1, 1, 10, 1]
+        self.lower_limits = [ 0.05, 0.05, 1, 0.05 ]
+        self.update_inc = [ 0.095, 0.095, 0.9 , 0.095]#10 steps på hver
         self.filename = filename
         
-        self.car_pars = [ 0.005, 0.05, 1]
+        self.car_pars = [ 0.05, 0.05, 1, 0.05 ]
         self.const_var = 0
         self.update_var = 1
 
@@ -32,6 +31,7 @@ class DataGathering:
             car.mu_roll = self.car_pars[0]
             car.mu_gears = self.car_pars[1]
             car.max_power = self.car_pars[2]
+            car.mu_prop_v = self.car_pars[3]
             
 
     def update_voltage(self):
@@ -47,7 +47,7 @@ class DataGathering:
         f = open(self.filename, "a+")
         for item in ls:
             f.write(str(item) +',')
-        f.write(str(self.car_pars[0])+','+ str(self.car_pars[1])+','+ str(self.car_pars[2])+ "\n")
+        f.write(str(self.car_pars[0])+','+ str(self.car_pars[1])+','+ str(self.car_pars[2])+ ','+ str(self.car_pars[3])+"\n")
         f.close()
 
     def update_parameters(self):
@@ -64,7 +64,7 @@ class DataGathering:
                     self.car_pars[self.const_var] = self.lower_limits[self.const_var]    
             self.car_pars[self.update_var] = self.lower_limits[self.update_var]
         self.car_pars[self.update_var] += self.update_inc[self.update_var]
-        #fiks det her, skal oppdatere så lenge dette 
+       
         if(self.update_var + 1 != self.const_var and self.update_var + 1 != len(self.car_pars)):
             self.update_var += 1
         else:
@@ -76,7 +76,6 @@ class DataGathering:
             elif self.update_var + 1 == self.const_var and self.const_var != len(self.car_pars)-1:
                 self.update_var += 2
         return True
-
 
     def run(self):
         self.set_up()
@@ -145,5 +144,53 @@ class DataGathering:
             car.mu_roll = self.car_pars[0]
             car.mu_gears = self.car_pars[1]
             car.max_power = self.car_pars[2]
+            car.mu_prop_v = self.car_pars[3]
             
 
+class ParameterEstimation:
+    def __init__(self, filename):
+        self.filename = filename
+        self.measured_lap_times = [2.1, 1.8, 1.6, 1.4, 1.2, 1]
+        self.sim_lap_times = []#float
+        self.corresponding_parameters = []#str
+        self.best_fit = None
+        self.best_parameters = None
+        self.deviation = np.inf
+    
+    def extract_lap_times(self):
+        f = open(self.filename, "r")
+        for line in f:
+            lap_times = line.split(",")
+            ls = []
+            j = 0
+            for i in range(0, 12, 2):
+                if((float(lap_times[i]) - 0.5 ) <= self.measured_lap_times[j] <= (float(lap_times[i]) + 0.5 )):
+                    ls.append(float(lap_times[i]))
+                    if i == 10:
+                        self.sim_lap_times.append(ls)
+                        self.corresponding_parameters.append(lap_times[12:len(lap_times)])
+                else:
+                    break
+                j += 1
+
+    def sum_of_squares(self): 
+        i = 0
+        for times in self.sim_lap_times:
+            sum = 0
+            for j in range(len(times)-1): 
+                sum += pow(times[j]-self.measured_lap_times[j],2)
+            if sum < self.deviation:
+                self.deviation = sum
+                self.best_fit = times
+                self.best_parameters = self.corresponding_parameters[i]
+                print("Best parameters: ", self.best_parameters)
+                print("Deviation: ", self.deviation)
+                print("Best fit lap times: ", self.best_fit)
+            i += 1
+    def run(self):
+        self.extract_lap_times()
+        self.sum_of_squares()
+        print("Best match")
+        print("Best parameters: ", self.best_parameters)
+        print("Deviation: ", self.deviation)
+        print("Best fit lap times: ", self.best_fit)
