@@ -77,17 +77,18 @@ class Car:
 
         self.mass        = 0.08       # kg
         self.area        = 0.002268   # m^2
-        self.drag_coeff  = 0.35       # dimensionless
+        self.drag_coeff  = 0.25       # dimensionless, Drag coeff for a car
+        
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .15        # dimensionless
+        self.motor_eta   = .4        # dimensionless
         self.mu_tire     = .9         # dimensionless
         self.mu_pin      = .04        # dimensionless
         self.mu_roll     = .01        # dimensionless
-        self.mu_gears    = 0.04         # N
+        self.mu_gears    = 0.1         # N
         self.motor_coeff = .1         # N/(m/s)
         self.max_power   = 10         # W
         self.vel_eps     = 0.12       # m/s
-        self.mu_prop_v   = 0.135
+        self.mu_prop_v   = 0.4
 
     def update_state(self, delta_time):
         """
@@ -372,17 +373,17 @@ class Car:
         """
 
         rolling_resistance = self.get_rolling_resistance(pos, vel)
-        motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
-        axle_friction      = self.get_axle_friction(pos, vel)
-        pin_friction       = self.get_pin_friction(pos, vel, phi)
-        lateral_friction   = self.get_lateral_friction(pos, vel)
+        #motor_brake_force  = self.get_motor_brake_force(pos, vel, c_in)
+        #axle_friction      = self.get_axle_friction(pos, vel)
+        pin_friction       = self.get_pin_friction(pos, vel, phi)# = 0
+        lateral_friction   = self.get_lateral_friction(pos, vel) # = 0
         magnet_force       = self.get_magnet_force(pos, vel)
         gravity_force      = self.get_gravity_force(pos, vel)
         normal_force       = self.get_normal_force(pos, vel)
-        thrust_force       = self.get_thrust_force(pos, vel, c_in)
+        #thrust_force       = self.get_thrust_force(pos, vel, c_in)
         engine_force       = self.get_engine_force(pos, vel, phi, c_in)
         drag_force         = self.get_drag_force(pos, vel)
-        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
+        lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi) # = 0
 
         #print(engine_force)
         #print(rolling_resistance)
@@ -415,7 +416,8 @@ class Car:
                   "Thrust force     :", self.get_thrust_force(pos, vel, c_in), "\n",
                   "Drag force       :", self.get_drag_force(pos, vel), "\n",
                   "Lateral pin force:", self.get_lateral_pin_force(pos, vel, phi), "\n",
-                  "Total force:", total_force_vec, "\n")
+                  "Total force:", total_force_vec, "\n",
+                  "Velocity vec:", self.vel_vec)'''
         """
 
         return total_force_vec
@@ -550,7 +552,7 @@ class Car:
         Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
-
+        
         T = c_in*self.max_power/max(0.12, np.linalg.norm(vel))
         t_vec = np.asarray([T, 0, 0])
 
