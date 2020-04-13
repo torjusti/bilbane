@@ -55,7 +55,7 @@ class Car:
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
-        self.MAX_CENTRIFUGAL_FORCE = 10 #fiks her, ser bort fra avkjøring inntil videre
+        self.MAX_CENTRIFUGAL_FORCE = 1.312 
 
         self.is_crashed = False
         self.crash_time = 0
@@ -84,11 +84,11 @@ class Car:
         
         self.mu_tire     = 1        # dimensionless, brukes ikke 
         self.mu_pin      = .04        # dimensionless, brukes ikke
-        self.mu_roll     = .1        # dimensionless
-        self.mu_gears     = .5         # N, 
+        self.mu_roll     = .0085        # dimensionless
+        self.mu_gears     = .079         # N, 
         self.motor_coeff = 10         # N/(m/s) brukes ikke
-        self.max_power   = 4.5         # W
-        self.mu_prop_v   = 0.1
+        self.max_power   = 3.825         # W
+        self.mu_prop_v   = 0.39
         self.vel_eps     = 0.12       # m/s
 
     def update_state(self, delta_time):
