@@ -47,6 +47,7 @@ class Car:
     mu_pin      = None  # dimensionless
     mu_roll     = None  # dimensionless
     mu_gears    = None  # dimensionless
+    mu_prop_v   = None  # kg/s
     motor_coeff = None  # N/(m/s)
     max_power   = None  # W
     vel_eps     = None  # m/s, to avoid division by 0 in thrust formula
@@ -54,7 +55,7 @@ class Car:
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
-        self.MAX_CENTRIFUGAL_FORCE = 2
+        self.MAX_CENTRIFUGAL_FORCE = np.Inf
 
         self.is_crashed = False
         self.crash_time = 0
@@ -78,14 +79,15 @@ class Car:
         self.area        = 0.002268   # m^2
         self.drag_coeff  = 0.35       # dimensionless
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .05        # dimensionless
+        self.motor_eta   = .15        # dimensionless
         self.mu_tire     = .9         # dimensionless
         self.mu_pin      = .04        # dimensionless
         self.mu_roll     = .01        # dimensionless
-        self.mu_gears    = .1         # N
+        self.mu_gears    = 0.04         # N
         self.motor_coeff = .1         # N/(m/s)
         self.max_power   = 10         # W
         self.vel_eps     = 0.12       # m/s
+        self.mu_prop_v   = 0.135
 
     def update_state(self, delta_time):
         """
@@ -203,6 +205,9 @@ class Car:
         self.pos_vec = new_pos_vec
         self.vel_vec = new_vel_vec
         self.phi = new_phi
+
+        print(self.controller_input)
+        print(np.linalg.norm(self.vel_vec))
 
     def get_physics_state(self, delta_time):
         """
@@ -379,7 +384,10 @@ class Car:
         drag_force         = self.get_drag_force(pos, vel)
         lateral_pin_force  = self.get_lateral_pin_force(pos, vel, phi)
 
-        print(engine_force)
+        #print(engine_force)
+        #print(rolling_resistance)
+        #print(pin_friction)
+        #print(lateral_pin_force)
 
 
         total_force_vec = ( magnet_force
@@ -391,6 +399,8 @@ class Car:
                           + pin_friction
                           + rolling_resistance
                           + drag_force )
+
+        #print(np.linalg.norm(total_force_vec))
 
         """
         if (c_in != 0):
@@ -612,7 +622,7 @@ class Car:
         T = max(c_in - self.input_cutoff, 0) * self.motor_eta * self.max_power / max(self.vel_eps, np.linalg.norm(vel))
 
         # Calculate force causing energy dissipation
-        friction_loss = -self.mu_gears
+        friction_loss = -self.mu_gears - self.mu_prop_v*np.linalg.norm(vel)
         if np.linalg.norm(vel) < TOL:
             friction_loss = 0
 

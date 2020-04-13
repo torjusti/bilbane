@@ -7,18 +7,12 @@ from ai.controller import train
 
 def main():
     rails = [
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Right),
+        st.Straight('half'),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Left),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Right),
-        st.Curve(2, 45, direction=st.Curve.Left),
+        st.Straight('half'),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
         st.Curve(2, 45, direction=st.Curve.Left),
@@ -29,13 +23,13 @@ def main():
 
     cars = [
         Car(model.Rail.Lane1, track, key_control=True),
-        Car(model.Rail.Lane2, track),
+        #Car(model.Rail.Lane2, track),
     ]
 
     track.cars = cars
 
-    controller = train(track, cars[1])
-    cars[1].controller = controller
+    #controller = train(track, cars[1])
+    #cars[1].controller = controller
     game.start_game(track)
 
 
