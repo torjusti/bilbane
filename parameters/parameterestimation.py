@@ -15,12 +15,12 @@ class DataGathering:
         self.voltage_lower_limit = 0.4
         self.voltage_inc = 0.05
 
-        self.upper_limits = [0.5, 0.5, 5, 0.5]
-        self.lower_limits = [ 0.05, 0.05, 1, 0.05 ]
-        self.update_inc =  [ 0.045, 0.045, 0.4 , 0.045]#10 steps each
+        self.upper_limits = [0.01, 0.1, 4.2, 0.4]
+        self.lower_limits = [ 0.007, 0.065, 3.7, 0.37 ]
+        self.update_inc =  [ 0.0003, 0.0035, 0.005 , 0.003]#10 steps each
         self.filename = filename
         
-        self.car_pars = [ 0.05, 0.05, 1, 0.05 ]
+        self.car_pars = [ 0.007, 0.065, 3.7, 0.37 ]
         self.const_var = 0
         self.update_var = 1
 
@@ -184,3 +184,44 @@ class ParameterEstimation:
         print("Best parameters: ", self.best_parameters)
         print("Deviation: ", self.deviation)
         print("Best fit lap times: ", self.best_fit)
+    
+
+class EstimateMaxCentrifugalForce:
+    def __init__(self, track):
+        self.track = track
+        for car in self.track.cars:
+            car.controller_input = 0.67 # should fall off at this input
+            car.MAX_CENTRIFUGAL_FORCE = 1.5 # se hva som skjer
+    
+    def update_max_centrifugal_force(self):
+        for car in self.track.cars:
+            car.reset()
+            car.MAX_CENTRIFUGAL_FORCE -= 0.0001 #se hva som skjer
+            car.controller_input = 0.67
+    def simulation(self):
+        delta_time = 1/60
+        global_time = 0
+        max_cent = 0
+        while True:
+            
+            global_time += delta_time
+            self.track.step(delta_time)
+            for car in self.track.cars:
+                if np.linalg.norm(car.get_centrifugal_force(car.pos_vec,car.vel_vec, car.phi))> max_cent:
+                    max_cent = np.linalg.norm(car.get_centrifugal_force(car.pos_vec,car.vel_vec, car.phi))
+                
+                if car.is_crashed or car.MAX_CENTRIFUGAL_FORCE < 0:
+                    return True
+            print(max_cent)
+            if global_time > 20:
+                return False
+    def run(self):
+        stop = False
+        while not stop:
+            if self.simulation():
+                for car in self.track.cars:
+                    MAX_CENTRIFUGAL_FORCE = car.MAX_CENTRIFUGAL_FORCE
+                    stop = True
+            else:
+                self.update_max_centrifugal_force()
+        print("Max centrifugal force: ", MAX_CENTRIFUGAL_FORCE)

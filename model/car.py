@@ -56,7 +56,7 @@ class Car:
     def __init__(self, lane, track, key_control=False, track_locked=False):
         self.is_point_mass = True
         self.track_locked = track_locked
-        self.MAX_CENTRIFUGAL_FORCE = np.Inf
+        self.MAX_CENTRIFUGAL_FORCE = 1.312
 
         self.is_crashed = False
         self.crash_time = 0
@@ -81,15 +81,15 @@ class Car:
         self.drag_coeff  = 0.25       # dimensionless, Drag coeff for a car
         
         self.mag_coeff   = 1.0        # N
-        self.motor_eta   = .4        # dimensionless
-        self.mu_tire     = .9         # dimensionless
-        self.mu_pin      = .04        # dimensionless
-        self.mu_roll     = .01        # dimensionless
-        self.mu_gears    = 0.1         # N
-        self.motor_coeff = .1         # N/(m/s)
-        self.max_power   = 10         # W
+        self.motor_eta   = .765       # dimensionless
+        self.mu_tire     = 1          # dimensionless, brukes ikke
+        self.mu_pin      = .04        # dimensionless, brukes ikke
+        self.mu_roll     = .0085      # dimensionless
+        self.mu_gears    = .079       # N,
+        self.motor_coeff = 10         # N/(m/s) brukes ikke
+        self.max_power   = 5          # W
+        self.mu_prop_v   = 0.39
         self.vel_eps     = 0.12       # m/s
-        self.mu_prop_v   = 0.4
 
     def update_state(self, delta_time):
         """
