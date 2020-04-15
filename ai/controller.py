@@ -23,7 +23,7 @@ RAIL_LOOKAHEAD = 4
 # Whether or not the initial car position should be randomized.
 RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
-LOAD_MODEL = True
+LOAD_MODEL = False
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'sac'
 # Batch size to use when training.
@@ -37,9 +37,9 @@ EPISODE_LENGTH = 1000
 # If Ornstein-Uhlenbeck noise should be used with SAC.
 SAC_USE_OU = False
 # Number of steps to sample randomly before training starts.
-RANDOM_STEPS = 1000
+RANDOM_STEPS = 0
 # Set to `True` if the agent should always have fixed-length episodes.
-FIXED_EPISODES = False
+FIXED_EPISODES = True
 
 def get_state(car):
     """ Create a vector representing the position and velocity of `car` on `track`,
@@ -92,6 +92,9 @@ class SlotCarEnv:
         if rescale_action:
             action = 0.5 * (action + 1)
 
+        # Force an action which has an effect.
+        action = (1 - 0.3) * action + 0.3
+
         self.car.controller_input = action
 
         # Note: The actual game can run at a much finer granularity.
@@ -127,6 +130,8 @@ class AIController:
 
         if isinstance(self.agent, SACAgent):
             action = 0.5 * (action + 1)
+
+        action = (1 - 0.3) * action + 0.3
 
         return action
 
@@ -186,7 +191,13 @@ def get_controller(track, car, random_training_track=False):
 
     if os.path.exists('actor.pth') and LOAD_MODEL:
         agent.load_model('actor.pth')
+
+        # Evaluate stored model.
         print('Evaluation:', evaluate(validation_env, agent))
+
+        # Override random resetting.
+        car.reset()
+
         return AIController(agent, track, car)
 
     writer = SummaryWriter(flush_secs=10)
@@ -216,8 +227,11 @@ def get_controller(track, car, random_training_track=False):
                 # Get deterministic action and add exploration noise.
                 action = (agent.get_action(state) + noise(episode * EPISODE_LENGTH + step)).clip(0, 1)
 
+            # Rescale actions from symmetric distribution when using SAC.
+            rescale_action = isinstance(agent, SACAgent) and len(replay_buffer) >= RANDOM_STEPS
+
             next_state, reward, done = training_env.step(action.item(),
-                rescale_action=isinstance(agent, SACAgent))
+                rescale_action=rescale_action)
 
             replay_buffer.add(state, action, next_state, reward, done)
             episode_reward += reward
@@ -238,7 +252,7 @@ def get_controller(track, car, random_training_track=False):
 
         writer.add_scalar('reward/train', episode_reward, episode)
 
-        print(f'Episode {episode}: {episode_reward}, laps: {car.laps_completed}')
+        print(f'Episode {episode}: {episode_reward}')
 
         if episode % CHECKPOINT == CHECKPOINT - 1:
             evaluation = evaluate(validation_env, agent)

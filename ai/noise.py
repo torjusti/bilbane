@@ -2,7 +2,7 @@ import numpy as np
 
 
 class OrnsteinUhlenbeckNoise:
-    def __init__(self, size, mu=0.0, theta=0.15, max_sigma=0.3, min_sigma=0.01,
+    def __init__(self, size, mu=0.0, theta=0.15, max_sigma=0.15, min_sigma=0.01,
                  sigma_decay_period=300000, x_start=0, dt=1):
         """ This class implements Ornstein-Uhlenbeck, which is used to add
         random noise to each action, where the noise is autocorrelated. """

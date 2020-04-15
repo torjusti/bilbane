@@ -29,7 +29,6 @@ class Car:
     track = None  # Track on which the car is situated.
     rail = None  # Track section on which the car is situated.
     rail_progress = None # How far the car has driven along the current rail, normalized by the length of that rail.
-    laps_completed = None # Number of laps the car has completed since previous crash.
 
     # Controller variables
     controller_input = None  # Value in interval [0,1].
@@ -69,7 +68,6 @@ class Car:
         self.track = track
         self.rail = track.rails[0]
         self.rail_progress = 0
-        self.laps_completed = 0
 
         self.controller_input = 0
         self.key_control = key_control
@@ -79,7 +77,7 @@ class Car:
         self.mass        = 0.08       # kg
         self.area        = 0.002268   # m^2
         self.drag_coeff  = 0.25       # dimensionless, Drag coeff for a car
-        
+
         self.mag_coeff   = 1.0        # N
         self.motor_eta   = .765       # dimensionless
         self.mu_tire     = 1          # dimensionless, brukes ikke
@@ -135,7 +133,6 @@ class Car:
 
         self.rail = self.track.rails[0]
         self.rail_progress = 0
-        self.laps_completed = 0
 
         self.controller_input = 0
 
@@ -556,7 +553,7 @@ class Car:
         Returns:
             t_vec -- ndarray containing the components of the thrust force acting on the car (in x-, y- and z-direction)
         """
-        
+
         T = c_in*self.max_power/max(0.12, np.linalg.norm(vel))
         t_vec = np.asarray([T, 0, 0])
 

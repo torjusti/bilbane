@@ -23,7 +23,7 @@ class Actor(torch.nn.Module):
         """ Compute an action for the given state. """
         action = F.relu(self.l1_bn(self.l1(self.l0_bn(state))))
         action = F.relu(self.l2_bn(self.l2(action)))
-        return torch.clamp(self.l3_bn(self.l3(action)), 0, 1)
+        return torch.sigmoid(self.l3_bn(self.l3(action)))
 
 
 class Critic(torch.nn.Module):

@@ -15,7 +15,7 @@ class SlotCarGame(arcade.Window):
     space_pressed = False
 
     def __init__(self, width, height, track):
-        super().__init__(width, height)
+        super().__init__(width, height, title='Slot Car Racer')
 
         self.track = track
         self.car_sprites = arcade.SpriteList()
