@@ -91,6 +91,12 @@ class Car:
         self.mu_prop_v   = 0.39
         self.vel_eps     = 0.12       # m/s
 
+        self.wheel_radius = 0.01
+        self.max_V = 15.6
+        self.gear_ratio = 3
+        self.resistance = 1
+        self.k_motor = 5
+
     def update_state(self, delta_time):
         """
         Purpose: Update car variables for new time step.
@@ -208,8 +214,8 @@ class Car:
         self.vel_vec = new_vel_vec
         self.phi = new_phi
 
-        print(self.controller_input)
-        print(np.linalg.norm(self.vel_vec))
+        #print(self.controller_input)
+        #print(np.linalg.norm(self.vel_vec))
 
     def get_physics_state(self, delta_time):
         """
@@ -621,6 +627,10 @@ class Car:
         Purpose: Combine thrust force, motor braking effects, internal friction and rolling resistance in one function.
         """
 
+        magnitude = 0
+
+        # Original version
+        """
         # Calculate thrust
         T = max(c_in - self.input_cutoff, 0) * self.motor_eta * self.max_power / max(self.vel_eps, np.linalg.norm(vel))
 
@@ -630,8 +640,31 @@ class Car:
             friction_loss = 0
 
         engine_force = (T + friction_loss) * np.asarray([1,0,0])
+        """
 
-        return engine_force
+        # Sindre and Ingeborg's new version
+        """
+        K = self.gear_ratio * self.k_motor / self.wheel_radius
+
+        magnitude = max(c_in - self.input_cutoff, 0) * K * self.max_V / self.resistance - np.linalg.norm(vel) * (K**2) / self.resistance
+        """
+
+        # Trym's new version
+        """
+        P_input = max(c_in - self.input_cutoff, 0)*self.motor_eta*self.max_power
+        speed = np.linalg.norm(vel)
+
+        correction = 0
+        if np.linalg.norm(vel) < 0.1:
+            #print("Hello")
+            correction = - 2*self.k_motor*np.sqrt(P_input/self.resistance)/self.wheel_radius + ((self.k_motor / self.wheel_radius)**2)*speed/self.resistance
+
+        magnitude = P_input/max(speed, 0.01) + correction
+        """
+
+        print(magnitude)
+
+        return np.asarray([magnitude, 0, 0])
 
     # ---------------------------------------------------------------------------
     # Helper functions

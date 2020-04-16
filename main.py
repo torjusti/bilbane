@@ -30,7 +30,7 @@ def main():
 
     #controller = train(track, cars[1])
     #cars[1].controller = controller
-    #game.start_game(track)
+    game.start_game(track)
     
     #test = pe.DataGathering(track, "parameters/parameter_estimation5.txt")
     #test.run()
