@@ -94,8 +94,8 @@ class Car:
         self.wheel_radius = 0.01
         self.max_V = 15.6
         self.gear_ratio = 3
-        self.resistance = 1
-        self.k_motor = 5
+        self.resistance = 10
+        self.k_motor = 0.005
 
     def update_state(self, delta_time):
         """
@@ -661,6 +661,12 @@ class Car:
 
         magnitude = P_input/max(speed, 0.01) + correction
         """
+        #Trym's new and improved version
+        K = self.gear_ratio * self.k_motor / self.wheel_radius
+        v_in = max(c_in - self.input_cutoff, 0) * self.max_V 
+        magnitude = pow(v_in - K * np.linalg.norm(vel) , 2)/( self.resistance * max(self.vel_eps, np.linalg.norm(vel)))
+        if v_in - K * np.linalg.norm(vel) < 0:
+            magnitude *= -1
 
         print(magnitude)
 
