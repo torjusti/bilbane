@@ -13,25 +13,25 @@ class ExternalInput:
 
 
 class ControlTrack:
-    def __init__(self, port, pwm_pin, round_pin, scaling_factor):
-        self.scaling_factor = scaling_factor
+    def __init__(self, port, pwm_pin):
+        self.scaling_factor = 1
         self.input = []
         self.board = pyfirmata.Arduino(port)
         it = pyfirmata.util.Iterator(self.board)
         it.start()
         self.pwm_pin = self.board.get_pin('d:' + pwm_pin + ':p') #definer pinnen som PWM(p), d(digital)
-        self.round_pin = self.board.get_pin('a:' + round_pin + '0:i')
-        self.photo_value = None
-        self.start_time_last_lap = None
-        self.lap_times = []
-        self.photo_max = None
+        #self.round_pin = self.board.get_pin('a:' + round_pin + '0:i')
+        #self.photo_value = None
+        #self.start_time_last_lap = None
+        #self.lap_times = []
+        #self.photo_max = None
 
     def read_input(self, file):
         f = open(file, 'r')
         for line in f:
             self.input.append(self.scaling_factor*float(line))
         f.close()
-    
+    '''
     def lap(self):
         new_photo_value = self.round_pin.read()
         new_lap = False
@@ -61,40 +61,27 @@ class ControlTrack:
     def print_lap_times(self):
         for time in self.lap_times:
             print(time)
-
+'''
     def run(self):
-        puls_width = 0.5
         i = 0
-        laps = 0
-        self.start_time_last_lap = time.time()
-        stop = True
-        while True:
-            self.pwm_pin.write(puls_width)
-            if(self.lap()):
-                self.lap_time()
-                laps +=1
-            if (laps+1)% 5==0 and stop:
-                self.pwm_pin.write(0)
-                time.sleep(2)
-                stop = False
-            
-            if laps == 10:
-                self.pwm_pin.write(0)
-                break
-            #puls_width = self.input[i]
-            #i+= 1
-            
+        for i in self.input:
+            self.pwm_pin.write(i)
+            time.sleep(1/60)
+        self.pwm_pin.write(0)
+    def test(self):
+        self.pwm_pin.write(0.64)
+        time.sleep(20)
+        self.pwm_pin.write(0)
+        time.sleep(5)
                 
 
                     
 
 
 def main():
-    output = ControlTrack('com3','9','0',0.9)
-    output.initilize_photoresistor()
-    #output.read_input('input_sequences\\4_rounds.txt')
+    output = ControlTrack('com3','9')
+    #output.test()
+    output.read_input("final_test_3_laps.txt")
     output.run()
-    output.print_lap_times()
-    #output.read_photoresistor()
-
+    
 main()
