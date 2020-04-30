@@ -23,7 +23,7 @@ RAIL_LOOKAHEAD = 4
 # Whether or not the initial car position should be randomized.
 RANDOM_START = False
 # Whether or not the controller should load a pre-trained model.
-LOAD_MODEL = False
+LOAD_MODEL = True
 # Algorithm to use for training. Either `ddpg`, `td3` or 'sac'.
 AGENT_TYPE = 'sac'
 # Batch size to use when training.
@@ -31,13 +31,13 @@ BATCH_SIZE = 256
 # Interval at which the model should be saved.
 CHECKPOINT = 10
 # Number of episodes to train for.
-EPISODES = 500
+EPISODES = 100
 # Number of timesteps in an episode.
 EPISODE_LENGTH = 1000
 # If Ornstein-Uhlenbeck noise should be used with SAC.
 SAC_USE_OU = False
 # Number of steps to sample randomly before training starts.
-RANDOM_STEPS = 0
+RANDOM_STEPS = 10000
 # Set to `True` if the agent should always have fixed-length episodes.
 FIXED_EPISODES = True
 
@@ -92,10 +92,9 @@ class SlotCarEnv:
         if rescale_action:
             action = 0.5 * (action + 1)
 
-        # Force an action which has an effect.
-        action = (1 - 0.3) * action + 0.3
+        action = (1 - 0.32) * action + 0.32
 
-        self.car.controller_input = action
+        self.car.controller_input = 6 / 9
 
         # Note: The actual game can run at a much finer granularity.
         self.track.step(DELTA_TIME)
@@ -131,9 +130,17 @@ class AIController:
         if isinstance(self.agent, SACAgent):
             action = 0.5 * (action + 1)
 
-        action = (1 - 0.3) * action + 0.3
+        if self.car.rail == self.car.track.rails[0] and self.car.rail != self.car.previous_rail:
+            print('Lap completed')
 
-        return action
+        self.car.previous_rail = self.car.rail
+
+        # Force an action which has an effect.
+        action = (1 - 0.32) * action + 0.32
+
+        self.car.previous_rail = self.car.rail
+
+        return 5 / 9
 
 
 def evaluate(env, agent, episode_length=EPISODE_LENGTH):

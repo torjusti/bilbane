@@ -10,8 +10,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class SACAgent(ActorCriticAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, critic_lr=1e-3,
-                 actor_lr=3e-4, update_step=1):
+    def __init__(self, state_dim, action_dim, gamma=0.99, tau=5e-3, critic_lr=3e-4,
+                 actor_lr=3e-4, update_step=2):
         self.actor = GaussianActor(state_dim, action_dim).to(device)
         self.Q1 = Critic(state_dim, action_dim).to(device)
         self.Q2 = Critic(state_dim, action_dim).to(device)
